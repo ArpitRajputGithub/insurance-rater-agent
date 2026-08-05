@@ -1,0 +1,98 @@
+{
+  "status": "resolved",
+  "insurer": "Go Digit",
+  "policyType": "satp",
+  "facts": {
+    "registration": {
+      "value": "UP78FZ1372",
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1 — UP78FZ1372",
+      "note": null
+    },
+    "rto_code": {
+      "value": "UP78",
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1 — RTO code from registration UP78FZ1372",
+      "note": null
+    },
+    "rto_location": {
+      "value": "Kanpur Nagar, Uttar Pradesh",
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1 — RTO Location Kanpur Nagar",
+      "note": "State normalised from RTO code; OCR garbled it on the schedule."
+    },
+    "make": {
+      "value": "Hyundai",
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1",
+      "note": null
+    },
+    "model": {
+      "value": "SANTRO NEW/1.LMT CORPORATE",
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1",
+      "note": null
+    },
+    "fuel": {
+      "value": "petrol",
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1 — Fuel Type Petrol",
+      "note": null
+    },
+    "cc": {
+      "value": 1086,
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1 — Cubic Capacity 1086",
+      "note": null
+    },
+    "mfg_year": {
+      "value": "0001-01-01",
+      "confident": false,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1 — Year of Mfg. 0001-01-01",
+      "note": "Placeholder date 0001-01-01 in source; unusable."
+    },
+    "regn_year": {
+      "value": 2019,
+      "confident": true,
+      "citation": "pvt-car-satp-go-digit.pdf · page 1 — YearofRegn. 2019",
+      "note": null
+    }
+  },
+  "rates": {
+    "od": {
+      "applicable": false,
+      "status": "resolved",
+      "ratePercent": null,
+      "reason": "Stand-alone TP policy: Own Damage is not covered, so no OD commission applies.",
+      "citations": []
+    },
+    "tp": {
+      "applicable": true,
+      "status": "resolved",
+      "ratePercent": 29.5,
+      "reason": "Go Digit 4W SATP rate for UP78 (UP_Bad) / Petrol>1000.",
+      "citations": [
+        "Large Insurance Brokers Mar'26 - Shared.xlsx · 4W  RTO!C1609 — UP78 maps to 4WTP cluster 'UP_Bad'",
+        "Large Insurance Brokers Mar'26 - Shared.xlsx · 4W SATP!E293 — cluster 'UP_Bad', segment 'Petrol>1000' -> 29.5%"
+      ]
+    }
+  },
+  "trace": [
+    {
+      "decision": "RTO UP78 maps to Go Digit TP cluster 'UP_Bad'",
+      "policyCitation": "pvt-car-satp-go-digit.pdf · page 1 — RTO code from registration UP78FZ1372",
+      "gridCitation": "Large Insurance Brokers Mar'26 - Shared.xlsx · 4W  RTO!C1609 — UP78 maps to 4WTP cluster 'UP_Bad'"
+    },
+    {
+      "decision": "Segment 'Petrol>1000' in cluster 'UP_Bad' -> TP 29.5%",
+      "policyCitation": null,
+      "gridCitation": "Large Insurance Brokers Mar'26 - Shared.xlsx · 4W SATP!E293 — cluster 'UP_Bad', segment 'Petrol>1000' -> 29.5%"
+    }
+  ],
+  "confidence": {
+    "level": "high",
+    "reason": "Every applicable component resolved to a cited grid rate with no assumptions."
+  },
+  "warnings": [],
+  "policyFile": "pvt-car-satp-go-digit.pdf"
+}

@@ -1,0 +1,126 @@
+{
+  "status": "resolved",
+  "insurer": "Reliance",
+  "policyType": "comprehensive",
+  "facts": {
+    "registration": {
+      "value": "UP16C5583",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — Registration No. UP16C5583",
+      "note": null
+    },
+    "rto_code": {
+      "value": "UP-16",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — RTO code from UP16C5583",
+      "note": null
+    },
+    "rto_location": {
+      "value": "UTTAR PRADESH - Noida",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — RTO Location UTTAR PRADESH - Noida",
+      "note": null
+    },
+    "make": {
+      "value": "Renault",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2",
+      "note": null
+    },
+    "model": {
+      "value": "Kwid 1.0 Rxt O",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2",
+      "note": null
+    },
+    "cc": {
+      "value": 999,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — Cc / HP 999",
+      "note": null
+    },
+    "cng_lpg_kit": {
+      "value": false,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — CNG / LPG Kit = 0.00",
+      "note": null
+    },
+    "fuel": {
+      "value": null,
+      "confident": false,
+      "citation": null,
+      "note": "Fuel type is not printed on the Reliance schedule."
+    },
+    "ncb_percent": {
+      "value": 25,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — Deduct 25 % for NCB",
+      "note": null
+    },
+    "ncb_applies": {
+      "value": true,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — Deduct 25 % for NCB",
+      "note": null
+    },
+    "od_premium": {
+      "value": 4714,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — TOTAL OWN DAMAGE PREMIUM 4,714",
+      "note": null
+    },
+    "tp_premium": {
+      "value": 2094,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-reliance.pdf · page 2 — Basic Liability (TPPD 1} 2,094",
+      "note": null
+    }
+  },
+  "rates": {
+    "od": {
+      "applicable": true,
+      "status": "resolved",
+      "ratePercent": 17.5,
+      "reason": "Reliance Delhi OD (fuel not printed; no CNG/LPG kit and <1000cc (no diesel variant exists), so the Petrol/Bifuel column applies) minus <1000cc footnote.",
+      "citations": [
+        "Reliance Broking Premier  FEB 26 Grid.xlsx · RTO List!C1253 — UP-16 -> Region_City 'Delhi'",
+        "Reliance Broking Premier  FEB 26 Grid.xlsx · PRIVATE CAR COMP, SAOD & STP!C11 — Delhi Petrol/Bifuel/Comp = 22.5%",
+        "Reliance Broking Premier  FEB 26 Grid.xlsx · PRIVATE CAR COMP, SAOD & STP!H3 — footnote: <1000cc -> 5% lesser (Payout for < 1000 CC, PO will be 5% lesser than the above Grid)"
+      ]
+    },
+    "tp": {
+      "applicable": true,
+      "status": "resolved",
+      "ratePercent": 0.0,
+      "reason": "Reliance pays commission on OD premium only (grid note); the Third Party (STP) column is 0.",
+      "citations": [
+        "Reliance Broking Premier  FEB 26 Grid.xlsx · PRIVATE CAR COMP, SAOD & STP!F11 — STP column = 0; payout is on OD premium only"
+      ]
+    }
+  },
+  "trace": [
+    {
+      "decision": "RTO UP-16 maps to Reliance region 'Delhi'",
+      "policyCitation": "pvt-car-comprehensive-reliance.pdf · page 2 — RTO code from UP16C5583",
+      "gridCitation": "Reliance Broking Premier  FEB 26 Grid.xlsx · RTO List!C1253 — UP-16 -> Region_City 'Delhi'"
+    },
+    {
+      "decision": "Region 'Delhi' OD (Petrol/Bifuel) = 22.5% (fuel not printed; no CNG/LPG kit and <1000cc (no diesel variant exists), so the Petrol/Bifuel column applies)",
+      "policyCitation": null,
+      "gridCitation": "Reliance Broking Premier  FEB 26 Grid.xlsx · PRIVATE CAR COMP, SAOD & STP!C11 — Delhi Petrol/Bifuel/Comp = 22.5%"
+    },
+    {
+      "decision": "Footnote: 999cc < 1000cc -> -5% -> OD 17.5%",
+      "policyCitation": null,
+      "gridCitation": "Reliance Broking Premier  FEB 26 Grid.xlsx · PRIVATE CAR COMP, SAOD & STP!H3 — footnote: <1000cc -> 5% lesser (Payout for < 1000 CC, PO will be 5% lesser than the above Grid)"
+    }
+  ],
+  "confidence": {
+    "level": "medium",
+    "reason": "OD resolved (17.5%), TP resolved (0%); a documented assumption was needed"
+  },
+  "warnings": [
+    "Reliance: fuel assumed Petrol/Bifuel (not on schedule; no CNG kit, <1000cc)."
+  ],
+  "policyFile": "pvt-car-comprehensive-reliance.pdf"
+}

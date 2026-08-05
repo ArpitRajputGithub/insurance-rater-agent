@@ -1,0 +1,60 @@
+{
+  "formatVersion": 1,
+  "contents": {
+    "policyPdfs": 4,
+    "spreadsheetRateCards": 3,
+    "pdfRateCards": 1
+  },
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 990,
+      "sha256": "301a2cbd422ca70a7552c24e5489a2cbeeebc30b8d07128155a57924d9882d20"
+    },
+    {
+      "path": "challenge.md",
+      "bytes": 7042,
+      "sha256": "4678017cf667f5d098e3fe4163c8986c4069c177165093a200e799535e94098d"
+    },
+    {
+      "path": "sample-policies/pvt-car-comprehensive-hdfc-ergo.pdf",
+      "bytes": 3196220,
+      "sha256": "c5d88a11b7341baef97ec531e5239e7afe803877eb31555a82b4bfdd5964ca70"
+    },
+    {
+      "path": "sample-policies/pvt-car-comprehensive-reliance.pdf",
+      "bytes": 10368693,
+      "sha256": "c96ad51804c7195838f7faca446c068e48604e990be6c9a6d412cf7c0518efbb"
+    },
+    {
+      "path": "sample-policies/pvt-car-satp-go-digit.pdf",
+      "bytes": 1224418,
+      "sha256": "4854e968d2280cb4ca6022b0b385328e14847d059a60bf186edf248df4bd4a26"
+    },
+    {
+      "path": "sample-policies/pvt-car-satp-tata-aig.pdf",
+      "bytes": 2671242,
+      "sha256": "ec180dc9dfa947ccd388a08b2350988b490551072b52878c998a14a7c5e24249"
+    },
+    {
+      "path": "raters/hdfc-ergo/feb-2025/Pvt Car New Grid Eff 1st Feb'25 (HDFC ergo) 1.pdf",
+      "bytes": 638132,
+      "sha256": "d0900bf67631151ac5a9b398402279a56e5bc75a13659de6f294a3b298712bf9"
+    },
+    {
+      "path": "raters/godigit/march-2026/Large Insurance Brokers Mar'26 - Shared.xlsx",
+      "bytes": 468080,
+      "sha256": "e0bc44d203205acb11e34278c03ddc9a9356a2fbef3c63ffc596d83fc41c8cf2"
+    },
+    {
+      "path": "raters/reliance-indusind/feb-2026/Reliance Broking Premier  FEB 26 Grid.xlsx",
+      "bytes": 1928494,
+      "sha256": "f2413e6022689325b4d1b965c26f5c9b0919cdabdaae57f96cfeb827b5a01e56"
+    },
+    {
+      "path": "raters/tata-aig/march-2026/Tata AIG Standard Grid_Communication_Mar'26_F_v2_0212.xlsx",
+      "bytes": 1479629,
+      "sha256": "664ef645d4613e8d24f038c0a8a2dd8eec8a4147a99da07c2b546ec58595b6c9"
+    }
+  ]
+}

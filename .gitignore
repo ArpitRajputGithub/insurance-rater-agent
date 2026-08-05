@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# OCR cache (regenerated from the source PDFs on demand)
+insurance_rater/.ocr_cache/
+
+# Test / tooling
+.pytest_cache/
+
+# Local bundle archive (the extracted bundle/ dir is kept; the zip is not)
+bundle.zip
+
+# OS
+.DS_Store

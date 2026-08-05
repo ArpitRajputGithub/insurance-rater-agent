@@ -1,0 +1,98 @@
+{
+  "status": "resolved",
+  "insurer": "Tata AIG",
+  "policyType": "satp",
+  "facts": {
+    "make": {
+      "value": "Maruti",
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4",
+      "note": null
+    },
+    "model": {
+      "value": "Zen Estilo",
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4",
+      "note": null
+    },
+    "fuel": {
+      "value": "CNG",
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4 — Variant LXI CNG",
+      "note": null
+    },
+    "cc": {
+      "value": 998,
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4 — 998\nMake",
+      "note": null
+    },
+    "mfg_year": {
+      "value": 2011,
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4 — Mfg. Year 2011",
+      "note": null
+    },
+    "regn_date": {
+      "value": "02/11/2011",
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4 — Date of Registration 02/11/2011",
+      "note": null
+    },
+    "regn_year": {
+      "value": 2011,
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4 — Date of Registration 02/11/2011",
+      "note": null
+    },
+    "rto_location": {
+      "value": "DELHI",
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 4 — RTO Location DELHI",
+      "note": null
+    },
+    "tp_premium": {
+      "value": 2094,
+      "confident": true,
+      "citation": "pvt-car-satp-tata-aig.pdf · page 5 — Basic TP premium ¥ 2094",
+      "note": null
+    }
+  },
+  "rates": {
+    "od": {
+      "applicable": false,
+      "status": "resolved",
+      "ratePercent": null,
+      "reason": "Stand-alone TP policy: Own Damage is not covered, so no OD commission applies.",
+      "citations": []
+    },
+    "tp": {
+      "applicable": true,
+      "status": "resolved",
+      "ratePercent": 38.0,
+      "reason": "Tata AIG SATP rate for CNG in DELHI; every non-new segment/business-type row agrees at 38%.",
+      "citations": [
+        "Tata AIG Standard Grid_Communication_Mar'26_F_v2_0212.xlsx · Pvtcar!V5 — RTO cluster column 'DELHI'",
+        "Tata AIG Standard Grid_Communication_Mar'26_F_v2_0212.xlsx · Pvtcar!V511 — CNG SATP, Renewal/Rollover, all segments (rows 511-563) in 'DELHI'"
+      ]
+    }
+  },
+  "trace": [
+    {
+      "decision": "RTO 'DELHI' maps to Tata grid column 'DELHI'",
+      "policyCitation": "pvt-car-satp-tata-aig.pdf · page 4 — RTO Location DELHI",
+      "gridCitation": "Tata AIG Standard Grid_Communication_Mar'26_F_v2_0212.xlsx · Pvtcar!V5 — RTO cluster column 'DELHI'"
+    },
+    {
+      "decision": "CNG SATP Renewal/Rollover in 'DELHI': all 14 candidate rows converge -> TP 38%",
+      "policyCitation": null,
+      "gridCitation": "Tata AIG Standard Grid_Communication_Mar'26_F_v2_0212.xlsx · Pvtcar!V511 — CNG SATP, Renewal/Rollover, all segments (rows 511-563) in 'DELHI'"
+    }
+  ],
+  "confidence": {
+    "level": "high",
+    "reason": "Every applicable component resolved to a cited grid rate with no assumptions."
+  },
+  "warnings": [],
+  "policyFile": "pvt-car-satp-tata-aig.pdf"
+}

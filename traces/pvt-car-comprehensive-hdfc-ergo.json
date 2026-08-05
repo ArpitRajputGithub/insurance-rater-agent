@@ -1,0 +1,115 @@
+{
+  "status": "unsupported",
+  "insurer": "HDFC ERGO",
+  "policyType": "comprehensive",
+  "facts": {
+    "rto_state": {
+      "value": "Haryana",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — HARYANA",
+      "note": null
+    },
+    "registration": {
+      "value": "HR-26-FB-8239",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — HR-26-FB-8239",
+      "note": null
+    },
+    "make": {
+      "value": "Mahindra",
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1",
+      "note": null
+    },
+    "cc": {
+      "value": 1493,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — Cubic Capacity Watts 1493",
+      "note": null
+    },
+    "mfg_year": {
+      "value": 2023,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — Year of Manufacture = = 2023",
+      "note": null
+    },
+    "ncb_percent": {
+      "value": 35,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — No Claim Bonus (35%)",
+      "note": null
+    },
+    "ncb_applies": {
+      "value": true,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — No Claim Bonus (35%)",
+      "note": null
+    },
+    "od_premium": {
+      "value": 8053,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — Net Own Damage Premium (a} 8053",
+      "note": "Net OD premium."
+    },
+    "package_premium": {
+      "value": 11869,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — Total Package Premium (a+b) 11869",
+      "note": "Total Package Premium (a+b); HDFC slab is basis comprehensive GWP."
+    },
+    "tp_premium": {
+      "value": 3416,
+      "confident": true,
+      "citation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — Basic Third Party Liability 3416",
+      "note": null
+    },
+    "fuel": {
+      "value": null,
+      "confident": false,
+      "citation": null,
+      "note": "Fuel type is not stated anywhere on the HDFC schedule."
+    }
+  },
+  "rates": {
+    "od": {
+      "applicable": true,
+      "status": "resolved",
+      "ratePercent": 17.5,
+      "reason": "HDFC Zone 2 Package, slab >10-50k (petrol and non-petrol columns agree, NCB applies) -> 17.5%.",
+      "citations": [
+        "Pvt Car New Grid Eff 1st Feb'25 (HDFC ergo) 1.pdf · page 2 — Haryana -> Zone-2",
+        "Pvt Car New Grid Eff 1st Feb'25 (HDFC ergo) 1.pdf · page 1 — Zone 2 · Package · slab >10-50k: petrol=17.50%, nonpetrol=17.50%"
+      ]
+    },
+    "tp": {
+      "applicable": true,
+      "status": "unsupported",
+      "ratePercent": null,
+      "reason": "The HDFC ERGO grid publishes only Package/SAOD (Own-Damage-based) commission; it contains no Third Party rate table, so the TP rate cannot be determined from the supplied evidence.",
+      "citations": []
+    }
+  },
+  "trace": [
+    {
+      "decision": "Haryana maps to HDFC Zone-2",
+      "policyCitation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — HARYANA",
+      "gridCitation": "Pvt Car New Grid Eff 1st Feb'25 (HDFC ergo) 1.pdf · page 2 — Haryana -> Zone-2"
+    },
+    {
+      "decision": "Comprehensive premium 11869 -> slab >10-50k",
+      "policyCitation": "pvt-car-comprehensive-hdfc-ergo.pdf · page 1 — Total Package Premium (a+b) 11869",
+      "gridCitation": null
+    },
+    {
+      "decision": "Zone 2 · Package · >10-50k -> OD 17.5% (petrol and non-petrol columns agree)",
+      "policyCitation": null,
+      "gridCitation": "Pvt Car New Grid Eff 1st Feb'25 (HDFC ergo) 1.pdf · page 1 — Zone 2 · Package · slab >10-50k: petrol=17.50%, nonpetrol=17.50%"
+    }
+  ],
+  "confidence": {
+    "level": "medium",
+    "reason": "OD resolved (17.5%); TP unsupported — The HDFC ERGO grid publishes only Package/SAOD (Own-Damage-based) commission; it contains no Third Party rate table, so the TP rate cannot be determined from the supplied evidence."
+  },
+  "warnings": [],
+  "policyFile": "pvt-car-comprehensive-hdfc-ergo.pdf"
+}
