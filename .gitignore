@@ -11,6 +11,12 @@ insurance_rater/.ocr_cache/
 # Test / tooling
 .pytest_cache/
 
+# Secrets (Neon DATABASE_URL etc.) -- never commit
+.env
+
+# Design reference screenshots (large; the design spec md is kept, screenshots are not)
+design/*.png
+
 # Local bundle archive (the extracted bundle/ dir is kept; the zip is not)
 bundle.zip
 

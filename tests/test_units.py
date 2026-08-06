@@ -5,6 +5,7 @@ premium-slab boundaries, segment banding, and the status roll-up precedence.
 """
 from insurance_rater import grids
 from insurance_rater.agent import _rollup
+from insurance_rater.extract import _derive_type
 from insurance_rater.models import ComponentRate, Status
 
 
@@ -29,6 +30,16 @@ def test_go_digit_segment_banding():
     assert grids._godigit_segment("diesel", 1500) == "Diesel>1500"
     assert grids._godigit_segment("cng", 900) == "CNG"
     assert grids._godigit_segment(None, 1000) is None       # unknown fuel -> no guess
+
+
+def test_derive_type_reads_title_not_the_type_of_cover_trap():
+    # The Tata SATP fixture prints "Type of Cover: Package" on a Liability-Only
+    # policy; the title must win so it stays satp, not flip to comprehensive.
+    trap = ["Auto Secure - Liability Only Policy\n3. Type of Cover: Package"]
+    assert _derive_type(trap, default="satp") == "satp"
+    assert _derive_type(["Digit Private Car Package Policy"], default="satp") == "comprehensive"
+    assert _derive_type(["PRIVATE CAR COMPREHENSIVE POLICY"], default="satp") == "comprehensive"
+    assert _derive_type(["nothing type-bearing here"], default="satp") == "satp"
 
 
 def test_rollup_precedence():

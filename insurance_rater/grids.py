@@ -99,8 +99,8 @@ def _godigit_segment(fuel, cc):
 def _resolve_go_digit(facts, raters_dir):
     key = "go_digit"
     trace = []
-    od = _na("od", "Stand-alone TP policy: Own Damage is not covered, so no OD "
-                   "commission applies.")
+    od = _na("od", "This rate card covers Stand-alone TP only; Own Damage is not "
+                   "rated here, so no OD commission applies.")
     wb = _wb(key, raters_dir)
 
     rto = facts.get("rto_code")
@@ -369,13 +369,17 @@ def _pct_or(v):
 
 
 def _reliance_tp(key, sheet, rrow, stp):
-    # The grid note (H2) states payout is made on OD premium only; the STP column
-    # is 0 for every private-car region. TP therefore earns 0% commission here --
-    # a concrete, cited zero, not a missing rule.
+    # Grid note H2: payout is on OD premium only. A blank STP cell is a missing
+    # rule -> unsupported, never a fabricated zero.
+    val = _pct_or(stp)
+    if val is None:
+        return _unsupported("tp", "Reliance STP column is blank for this region; the "
+                            "Third Party payout cannot be confirmed from the grid.",
+                            [_xls_cite(key, sheet, rrow, 6, "STP column is blank")])
     c = _xls_cite(key, sheet, rrow, 6, f"STP column = {stp}; payout is on OD premium only")
-    return ComponentRate("tp", True, Status.RESOLVED, float(stp or 0), citations=[c],
+    return ComponentRate("tp", True, Status.RESOLVED, round(val, 3), citations=[c],
                          reason="Reliance pays commission on OD premium only (grid note); "
-                                "the Third Party (STP) column is 0.")
+                                f"the Third Party (STP) column reads {val:g}%.")
 
 
 # ---------------------------------------------------------------------------
@@ -387,8 +391,8 @@ def _resolve_tata(facts, raters_dir):
     from .models import Citation
     src = _source(key)
     trace = []
-    od = _na("od", "Stand-alone TP policy: Own Damage is not covered, so no OD "
-                   "commission applies.")
+    od = _na("od", "This rate card covers Stand-alone TP only; Own Damage is not "
+                   "rated here, so no OD commission applies.")
     wb = _wb(key, raters_dir)
     ws = wb["Pvtcar"]
 

@@ -52,6 +52,23 @@ def _find(pages: list[str], pattern: str, flags=re.I) -> Optional[tuple[re.Match
     return None
 
 
+# Anchored on the schedule title, not a generic "Type of Cover" field: the Tata
+# SATP fixture prints "Type of Cover: Package" on a Liability-Only policy.
+_TITLE_COMP = re.compile(
+    r"(?:Private Car|Auto Secure)\s*[-–]?\s*(?:Comprehensive|Package)\s+Policy", re.I)
+_TITLE_SATP = re.compile(
+    r"(?:Private Car|Auto Secure)\s*[-–]?\s*Liability Only Policy", re.I)
+
+
+def _derive_type(pages: list[str], default: str) -> str:
+    joined = "\n".join(pages)
+    if _TITLE_COMP.search(joined):
+        return "comprehensive"
+    if _TITLE_SATP.search(joined):
+        return "satp"
+    return default
+
+
 def _classify_policy(pages: list[str]) -> str:
     joined = "\n".join(pages)
     if re.search(r"liability only|third[\s-]party (cover|policy)|SATP|stand[\s-]alone", joined, re.I):
@@ -62,7 +79,7 @@ def _classify_policy(pages: list[str]) -> str:
     # Fall back to SATP markers even if the word "package" appears in boilerplate.
     if re.search(r"liability only|third[\s-]party cover", joined, re.I):
         return "satp"
-    return "comprehensive"
+    return "unknown"
 
 
 def detect_insurer(pages: list[str]) -> Optional[str]:
@@ -99,7 +116,7 @@ def _add_num(pf, key, pages, pattern, source, note=""):
 
 
 def _parse_hdfc(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="HDFC ERGO", policy_type="comprehensive")
+    pf = PolicyFacts(insurer="HDFC ERGO", policy_type=_derive_type(pages, "comprehensive"))
     # State drives the zone lookup; Gurgaon/HR schedule prints HARYANA.
     st = _find(pages, r"\b(HARYANA|DELHI|UTTAR PRADESH|PUNJAB|RAJASTHAN|MADHYA PRADESH|MAHARASHTRA|GUJARAT|KARNATAKA|KERALA|TAMIL ?NADU|WEST BENGAL|BIHAR|JHARKHAND|CHANDIGARH|UTTARAKHAND|HIMACHAL PRADESH|GOA|ODISHA|TELANGANA|ANDHRA PRADESH)\b")
     if st:
@@ -142,7 +159,7 @@ def _parse_hdfc(pages: list[str], source: str) -> PolicyFacts:
 
 
 def _parse_go_digit(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="Go Digit", policy_type="satp")
+    pf = PolicyFacts(insurer="Go Digit", policy_type=_derive_type(pages, "satp"))
     reg = _find(pages, r"\b(UP|DL|HR|MH|KA|TN|RJ|GJ|MP|WB|PB|AP|TS|KL|BR|JH|UK|HP|CH)\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{3,4}\b")
     if reg:
         m, i = reg
@@ -186,7 +203,7 @@ def _parse_go_digit(pages: list[str], source: str) -> PolicyFacts:
 
 
 def _parse_reliance(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="Reliance", policy_type="comprehensive")
+    pf = PolicyFacts(insurer="Reliance", policy_type=_derive_type(pages, "comprehensive"))
     reg = _find(pages, r"Registration No\.?\s+([A-Z]{2}\d{1,2}[A-Z]{1,2}\d{3,4})")
     if reg:
         m, i = reg
@@ -226,7 +243,7 @@ def _parse_reliance(pages: list[str], source: str) -> PolicyFacts:
 
 
 def _parse_tata(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="Tata AIG", policy_type="satp")
+    pf = PolicyFacts(insurer="Tata AIG", policy_type=_derive_type(pages, "satp"))
     mm = _find(pages, r"Make\s*/\s*Model\s*/?\s*([A-Z]+)\s*/\s*([A-Z ]+?)\s*/")
     if mm:
         m, i = mm

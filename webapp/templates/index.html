@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+{% if error %}
+<div class="card" style="border-color:var(--red)">
+  <strong>Could not rate this file.</strong>
+  <div class="muted" style="margin-top:6px">{{ error }}</div>
+</div>
+{% endif %}
+
+<div class="card">
+  <form id="rate-form" action="/rate" method="post" enctype="multipart/form-data">
+    <label class="drop" id="drop">
+      <svg class="drop-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="m7 8 5-5 5 5"/><path d="M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg>
+      <div class="title">Upload a motor-policy PDF</div>
+      <div class="muted">HDFC ERGO, Go Digit, Reliance or Tata AIG</div>
+      <span class="filebtn">Choose PDF</span>
+      <div class="filename" id="filename">or drag &amp; drop it here</div>
+      <input id="file" type="file" name="file" accept="application/pdf">
+    </label>
+    <div class="url-row" style="margin-top:14px;display:flex;align-items:center;gap:10px">
+      <input type="url" name="url" placeholder="…or paste a link to a policy PDF (https://…)"
+             style="flex:1;padding:11px 13px;border:1px solid var(--border);border-radius:10px;font:inherit;color:var(--ink);background:var(--card)">
+    </div>
+    <div class="actions"><button type="submit">Rate policy</button></div>
+  </form>
+  <script>
+  (function(){
+    var drop=document.getElementById('drop'),input=document.getElementById('file'),
+        label=document.getElementById('filename');
+    function show(){if(input.files.length){label.textContent=input.files[0].name;label.classList.add('has');}}
+    input.addEventListener('change',show);
+    ['dragenter','dragover'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.add('drag');});});
+    ['dragleave','drop'].forEach(function(e){drop.addEventListener(e,function(ev){ev.preventDefault();drop.classList.remove('drag');});});
+    drop.addEventListener('drop',function(ev){if(ev.dataTransfer.files.length){input.files=ev.dataTransfer.files;show();}});
+  })();
+  </script>
+</div>
+
+<div class="card">
+  <h3 style="margin-top:0">Recent ratings</h3>
+  {% if entries %}
+  <table>
+    <tr><th>Policy</th><th>Insurer</th><th>Type</th><th>Status</th></tr>
+    {% for e in entries %}
+    <tr>
+      <td><a href="/entry/{{ e.hash }}">{{ e.filename }}</a></td>
+      <td>{{ e.insurer or "—" }}</td>
+      <td>{{ e.policy_type or "—" }}</td>
+      <td><span class="badge {{ e.status }}">{{ e.status }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No ratings yet. Upload a policy to get started.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% macro json_table(v) -%}
+{%- if v is mapping -%}
+<table class="jt">{% for k, val in v.items() %}<tr><th>{{ k }}</th><td>{{ json_table(val) }}</td></tr>{% endfor %}</table>
+{%- elif v is sequence and v is not string -%}
+{%- if v -%}<table class="jt">{% for item in v %}<tr><th>{{ loop.index0 }}</th><td>{{ json_table(item) }}</td></tr>{% endfor %}</table>{%- else -%}<span class="muted">[ ]</span>{%- endif -%}
+{%- elif v is none -%}<span class="muted">null</span>
+{%- elif v is boolean -%}{{ "true" if v else "false" }}
+{%- else -%}{{ v }}
+{%- endif -%}
+{%- endmacro %}
+{% block content %}
+<p><a href="/">← back</a>{% if cached %} · <span class="muted">loaded from stored results</span>{% endif %}</p>
+
+{% if r.insurer == "unknown" %}
+<div class="card" style="border-color:#E0B84C;background:#FBF5E6">
+  <strong>Unrecognised insurer.</strong>
+  <div class="muted" style="margin-top:6px">This tool rates policies from <b>HDFC ERGO</b>, <b>Go Digit</b>, <b>Reliance</b> and <b>Tata AIG</b>. This file wasn't recognised as one of them, so no rate card applies — the result is reported as <code>unsupported</code> rather than guessed, never a fabricated number.</div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap">
+    <div>
+      <div style="font-size:27px;font-weight:500;letter-spacing:-0.02em">{{ r.insurer }}</div>
+      <div class="muted">{{ r.policyFile }} · {{ r.policyType }}</div>
+    </div>
+    <div>
+      <span class="badge {{ r.status }}">{{ r.status }}</span>
+      <span class="muted" style="font-size:12px">confidence: {{ r.confidence.level }}</span>
+    </div>
+  </div>
+
+  <div class="rates" style="margin-top:18px">
+    {% for key in ["od", "tp"] %}
+      {% set c = r.rates[key] %}
+      <div class="rate">
+        <h3>{{ key|upper }}</h3>
+        {% if not c.applicable %}
+          <div class="val muted">n/a</div>
+          <span class="badge na">not applicable</span>
+        {% else %}
+          <div class="val">{{ (c.ratePercent ~ "%") if c.ratePercent is not none else "—" }}</div>
+          <span class="badge {{ c.status }}">{{ c.status }}</span>
+        {% endif %}
+        <div class="reason">{{ c.reason }}</div>
+        {% if c.citations %}
+        <ul class="cites">
+          {% for cite in c.citations %}<li>{{ cite }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if r.facts %}
+<div class="card">
+  <h3 style="margin-top:0">Policy details</h3>
+  <div class="facts">
+    {% for key, f in r.facts.items() %}
+    <div class="fact">
+      <div class="k">{{ key.replace("_", " ") }}{% if not f.confident %} <span class="flag">unverified</span>{% endif %}</div>
+      <div class="v">{% if f.value is none %}—{% elif f.value is boolean %}{{ "Yes" if f.value else "No" }}{% else %}{{ f.value }}{% endif %}</div>
+      {% if f.citation %}<div class="cite">{{ f.citation }}</div>{% endif %}
+      {% if f.note %}<div class="note">{{ f.note }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if r.warnings %}
+<div class="card">
+  <h3 style="margin-top:0">Warnings</h3>
+  <ul class="muted" style="margin:0">{% for w in r.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<div class="card">
+  <h3 style="margin-top:0">Decision trace</h3>
+  <ol class="trace">
+    {% for s in r.trace %}
+    <li>{{ s.decision }}
+      {% if s.gridCitation %}<div class="cite">↳ {{ s.gridCitation }}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ol>
+</div>
+
+<details class="raw">
+  <summary>Full response (table)</summary>
+  <div class="jtwrap">{{ json_table(r) }}</div>
+</details>
+{% endblock %}

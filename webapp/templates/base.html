@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Insurance Rater</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+<style>
+:root{--purple:#5B3D91;--violet:#8B5CF6;--purple-80:#6D4AA8;--plum:#2E284C;
+--surface:#F4EEE3;--card:#FFFFFF;--border:#E7DFD1;--ink:#2E284C;--muted:#6E6786;
+--green:#2F9E63;--amber:#B4801F;--red:#D64545;--grey:#8B93A7;
+--accent:#5B3D91;--line:#E7DFD1;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface);color:var(--ink);
+font:16px/1.6 'Satoshi',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;}
+a{color:var(--purple);text-decoration:none}a:hover{color:var(--purple-80)}
+.wrap{max-width:900px;margin:0 auto;padding:32px 32px 72px}
+header{display:flex;align-items:center;gap:14px;padding-bottom:28px;margin-bottom:12px;
+border-bottom:1px solid var(--border);flex-wrap:wrap}
+header .mark{height:30px;width:auto;flex:none;display:block}
+header h1{font-size:27px;font-weight:400;letter-spacing:-0.03em;margin:0;line-height:1.1}
+header h1 a{color:var(--ink)}
+header .sub{color:var(--muted);font-size:14px;margin-left:auto;max-width:360px;text-align:right}
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+padding:28px;margin:20px 0}
+.card h3{margin:0 0 14px;font-size:19px;font-weight:500;letter-spacing:-0.02em}
+.badge{display:inline-block;padding:6px 12px;border-radius:9999px;font-size:13px;
+font-weight:500;line-height:1;color:#fff;text-transform:capitalize}
+.badge.resolved{background:var(--green)}.badge.unsupported{background:var(--amber)}
+.badge.ambiguous{background:var(--red)}.badge.na{background:var(--grey)}
+.rates{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media(max-width:600px){.rates{grid-template-columns:1fr}
+  header .sub{margin-left:0;text-align:left}}
+.rate h3{margin:0 0 8px;font-size:13px;letter-spacing:.06em;color:var(--muted);
+text-transform:uppercase;font-weight:500}
+.rate .val{font-size:44px;font-weight:500;letter-spacing:-0.03em;line-height:1.1;margin-bottom:10px}
+.reason{color:var(--muted);font-size:14px;margin-top:12px}
+.cites{list-style:none;padding:0;margin:12px 0 0;font-size:13px;color:var(--muted)}
+.cites li{padding:8px 0;border-top:1px solid var(--border)}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:20px 28px}
+@media(max-width:600px){.facts{grid-template-columns:1fr}}
+.fact .k{font-size:12px;letter-spacing:.05em;text-transform:uppercase;
+color:var(--muted);font-weight:500}
+.fact .v{font-size:19px;font-weight:500;margin-top:2px;word-break:break-word}
+.fact .cite{font-size:12px;color:var(--muted);margin-top:5px;word-break:break-word}
+.fact .note{font-size:13px;color:var(--muted);margin-top:5px;font-style:italic}
+.flag{display:inline-block;background:var(--amber);color:#fff;font-size:10px;
+padding:2px 7px;border-radius:9999px;letter-spacing:.02em;vertical-align:middle;
+text-transform:none;font-weight:500}
+details.raw{margin:20px 0}
+details.raw summary{cursor:pointer;color:var(--purple);font-size:14px;font-weight:500}
+.jtwrap{overflow:auto;margin-top:12px}
+.jt{border-collapse:collapse;width:100%;font-size:12.5px;
+font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.jt th,.jt td{border:1px solid var(--border);padding:6px 10px;text-align:left;
+vertical-align:top}
+.jt th{color:var(--purple);font-weight:500;white-space:nowrap;
+background:var(--surface);width:1%}
+.jt td{color:var(--ink)}
+.jt .muted{color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:12px 12px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:0}
+th{color:var(--muted);font-weight:500;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+.drop{border:1.5px dashed var(--border);border-radius:16px;padding:44px 28px;
+text-align:center;background:var(--surface);cursor:pointer;display:block;
+transition:border-color .15s,background .15s}
+.drop:hover,.drop:focus-within{border-color:var(--purple)}
+.drop.drag{border-color:var(--purple);background:#F0EAFB}
+.drop .title{font-size:19px;font-weight:500;margin:14px 0 4px}
+.drop-ic{width:38px;height:38px;color:var(--purple);opacity:.9}
+.drop input{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+overflow:hidden;clip:rect(0,0,0,0);border:0}
+.filebtn{display:inline-block;margin-top:18px;background:#fff;color:var(--ink);
+border:1px solid var(--border);border-radius:10px;padding:11px 22px;
+font-weight:500;font-size:15px;box-shadow:0 4px 12px rgba(46,40,76,.08)}
+.drop:hover .filebtn{border-color:var(--purple);color:var(--purple)}
+.filename{margin-top:14px;font-size:14px;color:var(--muted)}
+.filename.has{color:var(--ink);font-weight:500}
+.actions{margin-top:20px;text-align:center}
+button{background:var(--purple);color:#fff;border:0;border-radius:10px;padding:12px 27px;
+min-height:53px;font-family:inherit;font-size:16px;font-weight:500;cursor:pointer;
+box-shadow:0 6px 16px rgba(91,61,145,.28)}
+button:hover{background:var(--purple-80)}
+ol.trace{padding-left:20px;font-size:14px;color:var(--ink);margin:0}
+ol.trace li{margin:12px 0}
+ol.trace .cite{color:var(--muted);font-size:13px;margin-top:4px}
+.muted{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <img class="mark" src="/static/vaatun-wordmark-dark.png" alt="Vaatun">
+  <h1><a href="/">Insurance Rater</a></h1>
+  <span class="sub">OD / TP broker commission from insurer rate cards, with citations</span>
+</header>
+{% block content %}{% endblock %}
+</div>
+</body>
+</html>

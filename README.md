@@ -58,6 +58,44 @@ python -m pytest
 status roll-up). `test_policies.py` runs all four policies end-to-end and asserts
 both the rate **and** the exact grid cell cited.
 
+## Web app
+
+A thin FastAPI layer wraps the same `rate_policy()`: drag in a motor-policy PDF, pick
+one, or paste a link to one, and get the rated result in the browser — OD/TP rates with their grid citations,
+the extracted policy facts (vehicle, RTO, premiums, NCB), the decision trace, and the
+full JSON response rendered as a table. Any motor PDF is accepted: an unrecognised
+insurer returns a clean `unsupported`, never a guess. Each result is persisted by
+file hash, so re-uploading the same PDF returns the stored rating instead of
+re-running OCR, and every prior rating is listed on the home page.
+
+```bash
+echo 'DATABASE_URL=postgresql://…' > .env         # a Neon connection string
+uvicorn webapp.app:app --env-file .env --reload    # http://127.0.0.1:8000
+```
+
+The app persists to Postgres (`webapp/store.py`); point `DATABASE_URL` at any
+Postgres (a free Neon DB works). The `entries` table is created on first boot.
+
+## Deploy
+
+The image is stateless — state lives in a managed Postgres, so entries survive
+the container being stopped, redeployed, or wiped. This runs on a free tier with
+no credit card (Render for the container, Neon for the DB).
+
+```bash
+docker build -t rater .
+docker run -e DATABASE_URL="postgresql://…" -p 8080:8080 rater   # local container run
+```
+
+1. **Neon** — create a project, copy the connection string (`postgresql://…`).
+2. **Render** — New → Web Service → point at this GitHub repo (it auto-detects
+   the `Dockerfile`). Add one env var: `DATABASE_URL` = the Neon string.
+3. Deploy. Render serves it at `https://<name>.onrender.com`; the table is
+   created on first boot.
+
+The only system dependency is Tesseract (installed in the `Dockerfile`);
+everything else is a pip wheel.
+
 ## Architecture
 
 ```

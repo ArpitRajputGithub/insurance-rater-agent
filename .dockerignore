@@ -1,0 +1,11 @@
+.git
+.venv
+__pycache__
+*.pyc
+insurance_rater/.ocr_cache
+.pytest_cache
+data
+traces
+bundle/sample-policies
+bundle.zip
+.DS_Store
