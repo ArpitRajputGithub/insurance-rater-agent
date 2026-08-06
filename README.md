@@ -1,3 +1,13 @@
+---
+title: Insurance Rater Agent
+emoji: 📄
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Insurance Rater Agent
 
 Reads a scanned motor-policy PDF, finds the broker commission the insurer pays
