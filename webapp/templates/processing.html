@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <strong>Rating your policy<span id="dots"></span></strong>
+  <div class="muted" style="margin-top:6px">
+    Reading the schedule and resolving the rate card. This page updates itself &mdash; no need to refresh.
+  </div>
+</div>
+<script>
+  var n = 0, d = document.getElementById('dots');
+  setInterval(function () { n = (n + 1) % 4; d.textContent = '.'.repeat(n); }, 400);
+  setTimeout(function () { location.reload(); }, 2000);
+</script>
+{% endblock %}

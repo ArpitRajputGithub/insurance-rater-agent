@@ -31,6 +31,7 @@ from .models import Citation, PolicyFacts
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 _MODEL = "qwen/qwen3.6-27b"          # Groq's vision model (image + JSON mode)
 _RESOLUTION = 200  # DPI knob; qwen downscales past ~1.5-2MP, so crop-to-region is the next lever
+_MAX_PAGES = 3     # bound the per-page vision loop; the schedule identifies in the first pages
 
 _INT_KEYS = {"cc", "mfg_year", "regn_year", "ncb_percent",
              "od_premium", "tp_premium", "package_premium"}
@@ -121,7 +122,9 @@ def _call(data_urls: list[str]) -> dict:
         headers={"Content-Type": "application/json",
                  "User-Agent": "insurance-rater/1.0",  # Groq's edge 403s urllib's default UA
                  "Authorization": f"Bearer {_api_key()}"})
-    # Several pages back-to-back can trip the free 8000 TPM; honour Retry-After once.
+    # Several pages back-to-back can trip the free 8000 TPM; honour Retry-After
+    # once, but cap the wait -- a full 60s sleep in a user-facing request reads as
+    # a hang. If the limit needs longer, fail fast and let the caller surface it.
     for attempt in range(2):
         try:
             with urllib.request.urlopen(req, timeout=120) as resp:
@@ -129,7 +132,7 @@ def _call(data_urls: list[str]) -> dict:
             return json.loads(payload["choices"][0]["message"]["content"])
         except urllib.error.HTTPError as e:
             if e.code == 429 and attempt == 0:
-                time.sleep(int(e.headers.get("retry-after", 60)))
+                time.sleep(min(int(e.headers.get("retry-after", 5)), 15))
                 continue
             raise
 
@@ -228,7 +231,10 @@ def extract(pdf_path: str, source: str) -> Optional[PolicyFacts]:
     merged = {"insurer": None, "policy_type": None, "fields": {}}
     for i, im in enumerate(ocr.render_pages(pdf_path, _RESOLUTION), 1):
         _merge(merged, _call([_encode(im)]), i)
-        if _has_core(merged):
+        # The schedule that identifies the policy sits in the first pages for all
+        # four insurers; without this cap a doc that never yields `cc` (unreadable
+        # or unprinted) would grind every page -- 12-15 sequential vision calls.
+        if _has_core(merged) or i >= _MAX_PAGES:
             break
     return _build(merged, source)
 

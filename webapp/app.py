@@ -10,6 +10,7 @@ import ipaddress
 import os
 import socket
 import tempfile
+import threading
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -40,6 +41,40 @@ except Exception:
     pass
 
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024  # policy PDFs are a few MB; cap to protect the box
+
+# Rating runs in a background thread and the browser polls /entry, so a slow
+# upload (cold start, vision round-trips, a rate-limit wait) can't drop the POST
+# and force a manual refresh. `_JOBS[digest]` is _PROCESSING while a rating runs,
+# then an error string if it failed; success removes the key (result is in store).
+# ponytail: in-memory map, fine on one worker; move to the DB if this ever scales
+# past a single instance.
+_PROCESSING = "processing"
+_JOBS: dict[str, str] = {}
+
+
+def _pending_state(digest: str) -> tuple[str, str | None]:
+    """Classify a digest not yet in store: processing, error (with msg), or unknown."""
+    job = _JOBS.get(digest)
+    if job is None:
+        return ("unknown", None)
+    if job == _PROCESSING:
+        return ("processing", None)
+    return ("error", job)
+
+
+def _run_job(tmp_path: str, filename: str, digest: str) -> None:
+    try:
+        result = rate_policy(tmp_path, RATERS_DIR).to_dict()
+        result["policyFile"] = filename
+        store.save(digest, filename, result)
+        _JOBS.pop(digest, None)
+    except Exception as exc:  # surface it on the poll page, don't loop forever
+        _JOBS[digest] = f"{type(exc).__name__}: {exc}"
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _recent():
@@ -127,27 +162,29 @@ async def rate(request: Request,
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(data)
         tmp_path = tmp.name
-    try:
-        digest = ocr._digest(tmp_path)
-        result = store.get(digest)
-        cached = result is not None
-        if result is None:
-            result = rate_policy(tmp_path, RATERS_DIR).to_dict()
-            result["policyFile"] = filename
-            store.save(digest, filename, result)
-    except Exception as exc:  # upload is a trust boundary: show the error, not a 500
-        return _index(request, error=f"{type(exc).__name__}: {exc}")
-    finally:
-        os.unlink(tmp_path)
-    return templates.TemplateResponse(
-        "result.html",
-        {"request": request, "r": result, "hash": digest, "cached": cached})
+    # Dispatch rating to a background thread and redirect to the poll page: the
+    # browser never holds the long request, so a cold start or slow extraction
+    # can't drop the response and force a manual refresh.
+    digest = ocr._digest(tmp_path)
+    if store.get(digest) is not None or _JOBS.get(digest) == _PROCESSING:
+        os.unlink(tmp_path)  # already rated, or a rating is already in flight
+    else:
+        _JOBS[digest] = _PROCESSING
+        threading.Thread(target=_run_job, args=(tmp_path, filename, digest),
+                         daemon=True).start()
+    return RedirectResponse(f"/entry/{digest}", status_code=303)
 
 
 @app.get("/entry/{digest}", response_class=HTMLResponse)
 def entry(request: Request, digest: str):
     result = store.get(digest)
     if result is None:
+        state, message = _pending_state(digest)
+        if state == "processing":
+            return templates.TemplateResponse("processing.html", {"request": request})
+        if state == "error":
+            _JOBS.pop(digest, None)  # shown once; let a re-upload retry
+            return _index(request, error=message)
         return RedirectResponse("/", status_code=303)
     return templates.TemplateResponse(
         "result.html",
@@ -166,4 +203,10 @@ if __name__ == "__main__":
             raise AssertionError(f"should have refused {bad}")
         except ValueError:
             pass
-    print("upload-guard + ssrf self-check ok")
+    assert _pending_state("nope") == ("unknown", None)
+    _JOBS["d"] = _PROCESSING
+    assert _pending_state("d") == ("processing", None)
+    _JOBS["d"] = "RuntimeError: boom"
+    assert _pending_state("d") == ("error", "RuntimeError: boom")
+    _JOBS.clear()
+    print("upload-guard + ssrf + job-state self-check ok")
