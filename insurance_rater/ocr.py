@@ -13,10 +13,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from collections.abc import Iterator
 
 import pdfplumber
 import pytesseract
-from PIL import ImageEnhance
+from PIL import Image, ImageEnhance
 
 _CACHE_DIR = os.path.join(os.path.dirname(__file__), ".ocr_cache")
 _RESOLUTION = 400
@@ -38,6 +39,18 @@ def _digest(path: str) -> str:
     return h.hexdigest()[:16]
 
 
+def render_pages(path: str, resolution: int = _RESOLUTION) -> Iterator[Image.Image]:
+    """Rasterize PDF pages to PIL images one at a time (page 1 first).
+
+    A generator, not a list: a 400-DPI page is ~45MB, so yielding caps peak
+    memory to one page on the 512MB tier and lets an early-stopping caller skip
+    the rest.
+    """
+    with pdfplumber.open(path) as pdf:
+        for pg in pdf.pages:
+            yield pg.to_image(resolution=resolution).original
+
+
 def page_texts(path: str) -> list[str]:
     """Return OCR text for every page of the PDF (index 0 == page 1)."""
     os.makedirs(_CACHE_DIR, exist_ok=True)
@@ -47,14 +60,13 @@ def page_texts(path: str) -> list[str]:
             return json.load(f)
 
     pages: list[str] = []
-    with pdfplumber.open(path) as pdf:
-        for pg in pdf.pages:
-            gray = pg.to_image(resolution=_RESOLUTION).original.convert("L")
-            parts = []
-            for contrast, psm in _PASSES:
-                img = ImageEnhance.Contrast(gray).enhance(contrast)
-                parts.append(pytesseract.image_to_string(img, config=f"--psm {psm}"))
-            pages.append("\n".join(parts))
+    for page in render_pages(path):
+        gray = page.convert("L")
+        parts = []
+        for contrast, psm in _PASSES:
+            img = ImageEnhance.Contrast(gray).enhance(contrast)
+            parts.append(pytesseract.image_to_string(img, config=f"--psm {psm}"))
+        pages.append("\n".join(parts))
     with open(cache, "w") as f:
         json.dump(pages, f)
     return pages
