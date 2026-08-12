@@ -21,7 +21,12 @@ def main(argv=None):
     ap.add_argument("path", help="policy PDF, or a directory of policy PDFs")
     ap.add_argument("--raters", default=_DEFAULT_RATERS, help="raters/ grid directory")
     ap.add_argument("--out", help="directory to also write <name>.json into")
+    ap.add_argument("--llm", action="store_true",
+                    help="use the Groq LLM extractor (needs GROQ_API_KEY)")
     args = ap.parse_args(argv)
+
+    if args.llm:
+        os.environ["LLM_EXTRACT"] = "1"
 
     if os.path.isdir(args.path):
         pdfs = sorted(glob.glob(os.path.join(args.path, "*.pdf")))

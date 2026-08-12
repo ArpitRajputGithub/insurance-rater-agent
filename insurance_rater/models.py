@@ -45,7 +45,8 @@ class Fact:
 @dataclass
 class PolicyFacts:
     insurer: str
-    policy_type: str                       # "comprehensive" | "satp"
+    policy_type: str                       # "comprehensive" | "satp" | "saod"
+    insurer_key: Optional[str] = None      # resolver key, e.g. "go_digit"; None if unknown
     facts: dict[str, Fact] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 

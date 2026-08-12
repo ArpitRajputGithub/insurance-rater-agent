@@ -7,8 +7,8 @@ and a confidence the caller can trust.
 """
 from __future__ import annotations
 
-from . import grids, ocr
-from .extract import detect_insurer, extract_policy
+from . import grids
+from .extract import extract_policy
 from .models import AgentResult, Confidence, Status
 
 
@@ -63,7 +63,7 @@ def _confidence(top, od, tp, warnings):
 
 def rate_policy(pdf_path: str, raters_dir: str) -> AgentResult:
     pf = extract_policy(pdf_path)
-    insurer_key = detect_insurer(ocr.page_texts(pdf_path))
+    insurer_key = pf.insurer_key
 
     if insurer_key is None:
         od = grids._unsupported("od", "Insurer not recognised; no grid to resolve against.")

@@ -12,20 +12,12 @@ never prints) survives into the result instead of being silently guessed.
 """
 from __future__ import annotations
 
+import os
 import re
 from typing import Optional
 
-from . import ocr
+from . import insurers, ocr
 from .models import Citation, PolicyFacts
-
-# Insurer fingerprints, first match wins. Keep these specific: a bare "Digit"
-# also matches Reliance's "Digitally signed by ..." footer.
-_INSURERS = [
-    ("HDFC ERGO", "hdfc_ergo"),
-    ("Go Digit", "go_digit"),
-    ("Reliance", "reliance"),
-    ("Tata AIG", "tata_aig"),
-]
 
 # RTO state-code prefixes -> state name, used to normalise a location whose
 # state the OCR mangled (e.g. "WwTTAR PRADESH"). Extend as new codes appear.
@@ -58,15 +50,23 @@ _TITLE_COMP = re.compile(
     r"(?:Private Car|Auto Secure)\s*[-–]?\s*(?:Comprehensive|Package)\s+Policy", re.I)
 _TITLE_SATP = re.compile(
     r"(?:Private Car|Auto Secure)\s*[-–]?\s*Liability Only Policy", re.I)
+_TITLE_SAOD = re.compile(
+    r"Stand[-\s]?alone\s+Own\s+Damage", re.I)
 
 
-def _derive_type(pages: list[str], default: str) -> str:
+def _derive_type(pages: list[str]) -> str:
+    """Policy type from the schedule title, then from content markers, else
+    'unknown'. We never fall back to a per-insurer default: guessing a type the
+    schedule never states just moves the error downstream into a confident
+    wrong rate. 'unknown' makes the resolver refuse rather than assume."""
     joined = "\n".join(pages)
+    if _TITLE_SAOD.search(joined):
+        return "saod"
     if _TITLE_COMP.search(joined):
         return "comprehensive"
     if _TITLE_SATP.search(joined):
         return "satp"
-    return default
+    return _classify_policy(pages)
 
 
 def _classify_policy(pages: list[str]) -> str:
@@ -84,39 +84,57 @@ def _classify_policy(pages: list[str]) -> str:
 
 def detect_insurer(pages: list[str]) -> Optional[str]:
     head = "\n".join(pages[:2])
-    for needle, key in _INSURERS:
-        if re.search(re.escape(needle), head, re.I):
-            return key
+    for ins in insurers.REGISTRY:
+        if any(re.search(fp, head, re.I) for fp in ins.fingerprints):
+            return ins.key
     return None
 
 
 def extract_policy(pdf_path: str) -> PolicyFacts:
-    pages = ocr.page_texts(pdf_path)
     source = pdf_path.split("/")[-1]
+
+    # Optional vision-LLM extractor (same PolicyFacts shape, grids untouched).
+    # Opt-in via LLM_EXTRACT; it reads the page images directly, so it skips
+    # Tesseract entirely. Any failure falls back to the OCR+regex path below.
+    llm_error = None
+    if os.environ.get("LLM_EXTRACT"):
+        from . import llm
+        try:
+            pf = llm.extract(pdf_path, source)
+            if pf is not None:
+                return pf
+        except Exception as e:  # network/parse error -> fall back, don't crash
+            llm_error = f"{type(e).__name__}: {e}"
+
+    pages = ocr.page_texts(pdf_path)
     insurer_key = detect_insurer(pages)
     parser = _PARSERS.get(insurer_key)
     if parser is None:
         pf = PolicyFacts(insurer="unknown", policy_type=_classify_policy(pages))
         pf.warnings.append(f"Unrecognised insurer in {source}; no dedicated parser.")
         return pf
-    return parser(pages, source)
+    pf = parser(pages, source)
+    pf.insurer_key = insurer_key
+    if llm_error:
+        pf.warnings.append(f"LLM extraction failed ({llm_error}); used regex parser.")
+    return pf
 
 
 # ---------------------------------------------------------------------------
 # Per-insurer parsers
 # ---------------------------------------------------------------------------
-def _add_num(pf, key, pages, pattern, source, note=""):
+def _num(pages, pattern, source):
+    """First integer captured by `pattern` as (value, citation), or None."""
     r = _find(pages, pattern)
-    if r:
-        m, i = r
-        val = int(m.group(1).replace(",", "").split(".")[0])
-        pf.add(key, val, _cite(source, i, m.group(0).strip()), note=note)
-        return val
-    return None
+    if not r:
+        return None
+    m, i = r
+    val = int(m.group(1).replace(",", "").split(".")[0])
+    return val, _cite(source, i, m.group(0).strip())
 
 
 def _parse_hdfc(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="HDFC ERGO", policy_type=_derive_type(pages, "comprehensive"))
+    pf = PolicyFacts(insurer=insurers.name("hdfc_ergo"), policy_type=_derive_type(pages))
     # State drives the zone lookup; Gurgaon/HR schedule prints HARYANA.
     st = _find(pages, r"\b(HARYANA|DELHI|UTTAR PRADESH|PUNJAB|RAJASTHAN|MADHYA PRADESH|MAHARASHTRA|GUJARAT|KARNATAKA|KERALA|TAMIL ?NADU|WEST BENGAL|BIHAR|JHARKHAND|CHANDIGARH|UTTARAKHAND|HIMACHAL PRADESH|GOA|ODISHA|TELANGANA|ANDHRA PRADESH)\b")
     if st:
@@ -130,8 +148,10 @@ def _parse_hdfc(pages: list[str], source: str) -> PolicyFacts:
     if mk:
         m, i = mk
         pf.add("make", m.group(1).title(), _cite(source, i))
-    _add_num(pf, "cc", pages, r"(?:Cubic Capacity|/?Watts)\D{0,10}(\d{3,4})", source)
-    _add_num(pf, "mfg_year", pages, r"Year of Manufacture\D*(\d{4})", source)
+    if (r := _num(pages, r"(?:Cubic Capacity|/?Watts)\D{0,10}(\d{3,4})", source)):
+        pf.add("cc", *r)
+    if (r := _num(pages, r"Year of Manufacture\D*(\d{4})", source)):
+        pf.add("mfg_year", *r)
     # NCB present (a bonus % is deducted) -> NCB column of the grid.
     ncb = _find(pages, r"No Claim Bonus\s*\((\d{1,2})\s*%\)")
     if ncb:
@@ -141,17 +161,17 @@ def _parse_hdfc(pages: list[str], source: str) -> PolicyFacts:
     else:
         pf.add("ncb_applies", False, None, confident=False,
                note="No NCB deduction line found; assuming N-NCB.")
-    od = _add_num(pf, "od_premium", pages, r"Net Own Damage Premium\s*\(a[}\)]\s*([\d,]+)", source,
-                  note="Net OD premium.")
-    if od is None:
-        _add_num(pf, "od_premium", pages, r"Basic Own Damage\s*([\d,]+)", source,
-                 note="Basic OD premium (Net OD not read).")
+    if r := _num(pages, r"Net Own Damage Premium\s*\(a[}\)]\s*([\d,]+)", source):
+        pf.add("od_premium", *r, note="Net OD premium.")
+    elif r := _num(pages, r"Basic Own Damage\s*([\d,]+)", source):
+        pf.add("od_premium", *r, note="Basic OD premium (Net OD not read).")
     # The HDFC slab footnote reads on comprehensive (package) GWP, not OD-only,
     # so the total package premium (a+b) is what drives the slab.
-    _add_num(pf, "package_premium", pages,
-             r"Total Package Premium\s*[({]a\+b[)}]\s*([\d,]+)", source,
-             note="Total Package Premium (a+b); HDFC slab is basis comprehensive GWP.")
-    _add_num(pf, "tp_premium", pages, r"Basic Third Party Liability\s*([\d,]+)", source)
+    if r := _num(pages, r"Total Package Premium\s*[({]a\+b[)}]\s*([\d,]+)", source):
+        pf.add("package_premium", *r,
+               note="Total Package Premium (a+b); HDFC slab is basis comprehensive GWP.")
+    if r := _num(pages, r"Basic Third Party Liability\s*([\d,]+)", source):
+        pf.add("tp_premium", *r)
     # Fuel is never printed on this schedule -> leave it explicitly unknown.
     pf.add("fuel", None, None, confident=False,
            note="Fuel type is not stated anywhere on the HDFC schedule.")
@@ -159,7 +179,7 @@ def _parse_hdfc(pages: list[str], source: str) -> PolicyFacts:
 
 
 def _parse_go_digit(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="Go Digit", policy_type=_derive_type(pages, "satp"))
+    pf = PolicyFacts(insurer=insurers.name("go_digit"), policy_type=_derive_type(pages))
     reg = _find(pages, r"\b(UP|DL|HR|MH|KA|TN|RJ|GJ|MP|WB|PB|AP|TS|KL|BR|JH|UK|HP|CH)\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{3,4}\b")
     if reg:
         m, i = reg
@@ -190,7 +210,8 @@ def _parse_go_digit(pages: list[str], source: str) -> PolicyFacts:
     if fu:
         m, i = fu
         pf.add("fuel", m.group(1).lower().replace("ev", "electric"), _cite(source, i, m.group(0)))
-    _add_num(pf, "cc", pages, r"Cubic Capacity\s+(\d{3,4})", source)
+    if (r := _num(pages, r"Cubic Capacity\s+(\d{3,4})", source)):
+        pf.add("cc", *r)
     mfg = _find(pages, r"Year of Mfg\.?\s+([\d-]+)")
     if mfg:
         m, i = mfg
@@ -198,12 +219,13 @@ def _parse_go_digit(pages: list[str], source: str) -> PolicyFacts:
         bad = val.startswith("0001")
         pf.add("mfg_year", val, _cite(source, i, m.group(0)), confident=not bad,
                note="Placeholder date 0001-01-01 in source; unusable." if bad else "")
-    _add_num(pf, "regn_year", pages, r"Year\s*of\s*Regn\.?\s+(\d{4})", source)
+    if (r := _num(pages, r"Year\s*of\s*Regn\.?\s+(\d{4})", source)):
+        pf.add("regn_year", *r)
     return pf
 
 
 def _parse_reliance(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="Reliance", policy_type=_derive_type(pages, "comprehensive"))
+    pf = PolicyFacts(insurer=insurers.name("reliance"), policy_type=_derive_type(pages))
     reg = _find(pages, r"Registration No\.?\s+([A-Z]{2}\d{1,2}[A-Z]{1,2}\d{3,4})")
     if reg:
         m, i = reg
@@ -220,7 +242,8 @@ def _parse_reliance(pages: list[str], source: str) -> PolicyFacts:
         m, i = mm
         pf.add("make", m.group(1).title(), _cite(source, i))
         pf.add("model", m.group(2).strip().title(), _cite(source, i))
-    _add_num(pf, "cc", pages, r"(?:CC|Cc)\s*/\s*HP\s+(\d{3,4})", source)
+    if (r := _num(pages, r"(?:CC|Cc)\s*/\s*HP\s+(\d{3,4})", source)):
+        pf.add("cc", *r)
     # The Reliance schedule prints no fuel field. Record what we do know (no
     # CNG/LPG kit fitted) and leave fuel unknown; the resolver decides the
     # Petrol/Bifuel-vs-Diesel column from this + cc under a documented rule.
@@ -236,14 +259,16 @@ def _parse_reliance(pages: list[str], source: str) -> PolicyFacts:
         m, i = ncb
         pf.add("ncb_percent", int(m.group(1)), _cite(source, i, m.group(0)))
         pf.add("ncb_applies", True, _cite(source, i, m.group(0)))
-    _add_num(pf, "od_premium", pages, r"TOTAL OWN DAMAGE PREMIUM\s*([\d,]+)", source)
+    if (r := _num(pages, r"TOTAL OWN DAMAGE PREMIUM\s*([\d,]+)", source)):
+        pf.add("od_premium", *r)
     # OCR renders the closing ")" of "(TPPD 1)" as "}" on some passes, so accept both.
-    _add_num(pf, "tp_premium", pages, r"Basic Liability \(TPPD[^)}]*[)}]\s*([\d,]+)", source)
+    if (r := _num(pages, r"Basic Liability \(TPPD[^)}]*[)}]\s*([\d,]+)", source)):
+        pf.add("tp_premium", *r)
     return pf
 
 
 def _parse_tata(pages: list[str], source: str) -> PolicyFacts:
-    pf = PolicyFacts(insurer="Tata AIG", policy_type=_derive_type(pages, "satp"))
+    pf = PolicyFacts(insurer=insurers.name("tata_aig"), policy_type=_derive_type(pages))
     mm = _find(pages, r"Make\s*/\s*Model\s*/?\s*([A-Z]+)\s*/\s*([A-Z ]+?)\s*/")
     if mm:
         m, i = mm
@@ -254,8 +279,10 @@ def _parse_tata(pages: list[str], source: str) -> PolicyFacts:
         m, i = fu
         pf.add("fuel", m.group(1).upper() if m.group(1).upper() == "CNG" else m.group(1).lower(),
                _cite(source, i, m.group(0).strip()))
-    _add_num(pf, "cc", pages, r"\b(\d{3,4})\b\s*(?:CC)?\s*\n?\s*Make", source)
-    _add_num(pf, "mfg_year", pages, r"Mfg\.?\s*Year\s+(\d{4})", source)
+    if (r := _num(pages, r"\b(\d{3,4})\b\s*(?:CC)?\s*\n?\s*Make", source)):
+        pf.add("cc", *r)
+    if (r := _num(pages, r"Mfg\.?\s*Year\s+(\d{4})", source)):
+        pf.add("mfg_year", *r)
     reg = _find(pages, r"Date of Registration\s+(\d{2}/\d{2}/\d{4})")
     if reg:
         m, i = reg
@@ -269,7 +296,8 @@ def _parse_tata(pages: list[str], source: str) -> PolicyFacts:
     if zn:
         m, i = zn
         pf.add("zone", m.group(1), _cite(source, i, m.group(0)))
-    _add_num(pf, "tp_premium", pages, r"Basic TP premium\s*[^\d]{0,4}(\d{3,5})", source)
+    if (r := _num(pages, r"Basic TP premium\s*[^\d]{0,4}(\d{3,5})", source)):
+        pf.add("tp_premium", *r)
     return pf
 
 
