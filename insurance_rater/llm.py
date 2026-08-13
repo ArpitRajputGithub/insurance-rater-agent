@@ -20,8 +20,6 @@ import io
 import json
 import os
 import re
-import time
-import urllib.error
 import urllib.request
 from typing import Optional
 
@@ -36,8 +34,12 @@ _MAX_PAGES = 3     # bound the per-page vision loop; the schedule identifies in 
 _INT_KEYS = {"cc", "mfg_year", "regn_year", "ncb_percent",
              "od_premium", "tp_premium", "package_premium"}
 _BOOL_KEYS = {"ncb_applies", "cng_lpg_kit"}
+# rto_code is deliberately absent: it is derived from `registration` in code
+# (see _rto_from_registration), never transcribed by the model. Asking the model
+# for it made it read the plate's two state letters twice -- once here, once in
+# `registration` -- and a single misread (UP->UF) then broke the RTO lookup.
 _SCHEMA_KEYS = [
-    "registration", "rto_code", "rto_state", "rto_location", "make", "model",
+    "registration", "rto_state", "rto_location", "make", "model",
     "fuel", "cc", "mfg_year", "regn_year", "ncb_percent", "ncb_applies",
     "od_premium", "tp_premium", "package_premium", "zone", "cng_lpg_kit",
 ]
@@ -55,9 +57,10 @@ _SYSTEM = (
     "  fields: an object mapping any of these keys you can read to "
     "{\"value\":..., \"page\":<1-based int>, \"quote\":\"the text you read\"}. "
     "Allowed keys: " + ", ".join(_SCHEMA_KEYS) + ".\n"
-    "Rules: rto_code = the registration's state letters + district digits, e.g. "
-    "'HR51CQ0040' -> 'HR51'. The registration is safety-critical -- read it "
-    "character by character. fuel lowercase (petrol/diesel/cng/lpg/electric). "
+    "Rules: read the full registration plate character by character -- it is "
+    "safety-critical and drives the RTO lookup; do not abbreviate it. Put the "
+    "RTO's state name from the 'RTO Location' line into rto_state (e.g. 'UTTAR "
+    "PRADESH'). fuel lowercase (petrol/diesel/cng/lpg/electric). "
     "cc, mfg_year, regn_year, ncb_percent and *_premium as integers. "
     "ncb_applies and cng_lpg_kit are booleans (true/false), not header text. "
     "Omit any field you cannot read. Never guess a value."
@@ -122,19 +125,11 @@ def _call(data_urls: list[str]) -> dict:
         headers={"Content-Type": "application/json",
                  "User-Agent": "insurance-rater/1.0",  # Groq's edge 403s urllib's default UA
                  "Authorization": f"Bearer {_api_key()}"})
-    # Several pages back-to-back can trip the free 8000 TPM; honour Retry-After
-    # once, but cap the wait -- a full 60s sleep in a user-facing request reads as
-    # a hang. If the limit needs longer, fail fast and let the caller surface it.
-    for attempt in range(2):
-        try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                payload = json.load(resp)
-            return json.loads(payload["choices"][0]["message"]["content"])
-        except urllib.error.HTTPError as e:
-            if e.code == 429 and attempt == 0:
-                time.sleep(min(int(e.headers.get("retry-after", 5)), 15))
-                continue
-            raise
+    # Let a 429 (free-tier TPM) propagate: extract_policy catches it and falls
+    # back to the OCR path -- slower, but the request still returns a result.
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        payload = json.load(resp)
+    return json.loads(payload["choices"][0]["message"]["content"])
 
 
 def _insurer_key(value) -> Optional[str]:
@@ -165,12 +160,21 @@ def _coerce(key: str, value, insurer_key: Optional[str]):
         return None
     if key == "fuel":
         return str(value).strip().lower()
-    if key == "rto_code" and insurer_key == "reliance":
-        # Reliance's resolver keys off the dashed form "HR-51", not "HR51".
-        m = re.match(r"([A-Z]{2})[-\s]?(\d{1,2})", str(value).upper())
-        if m:
-            return f"{m.group(1)}-{m.group(2)}"
     return value
+
+
+def _rto_from_registration(reg, insurer_key: Optional[str]) -> Optional[str]:
+    """Derive the RTO code (state letters + district digits) from the raw plate.
+
+    Mirrors the OCR path (see extract.py): rto_code is never read on its own,
+    only derived from `registration`, so one transcription is the single source
+    of truth. Reliance's RTO List keys on the dashed form 'UP-16'; others plain.
+    """
+    m = re.match(r"([A-Za-z]{2})[-\s]?(\d{1,2})", str(reg).replace(" ", ""))
+    if not m:
+        return None
+    sep = "-" if insurer_key == "reliance" else ""
+    return f"{m.group(1).upper()}{sep}{m.group(2)}"
 
 
 def _build(raw: dict, source: str) -> PolicyFacts:
@@ -189,8 +193,49 @@ def _build(raw: dict, source: str) -> PolicyFacts:
             cite = Citation(source, f"page {obj['page']}",
                             str(obj.get("quote", "")).strip())
         pf.add(field_key, _coerce(field_key, value, key), cite)
+    reg_f = pf.facts.get("registration")
+    if reg_f and reg_f.value:
+        code = _rto_from_registration(reg_f.value, key)
+        if code:
+            loc = reg_f.citation.locator if reg_f.citation else ""
+            pf.add("rto_code", code,
+                   Citation(source, loc, f"RTO code from registration {reg_f.value}"))
+    _reconcile_rto(pf)
     pf.warnings.append(f"Facts read from page images by vision model ({_MODEL}).")
     return pf
+
+
+def _reconcile_rto(pf: PolicyFacts) -> None:
+    """Prefer the reliably-read RTO *prose* over the plate's two state letters.
+
+    The RTO's state is printed twice on the schedule: as dense plate glyphs
+    (error-prone) and as clean text on the 'RTO Location' line. rto_code's state
+    prefix is derived from the plate, so a vision misread (UP -> UF, or even a
+    valid-but-wrong DL) breaks the exact-match RTO lookup. When rto_state /
+    rto_location names a state we recognise and its code disagrees with the
+    plate's prefix, trust the prose and keep only the plate's district digits --
+    the digits read far more reliably than the two letters. Prose and plate name
+    the same RTO, so a disagreement means one was misread; the prose wins.
+    """
+    from .extract import _STATE_BY_CODE  # code -> state name; invert for lookup
+    code_f = pf.facts.get("rto_code")
+    if not code_f:
+        return
+    m = re.match(r"([A-Za-z]{2})([-\s]?)(\d{1,2})", str(code_f.value))
+    if not m:
+        return
+    prefix, sep, digits = m.group(1).upper(), m.group(2), m.group(3)
+    prose = " ".join(str(pf.get(k) or "") for k in ("rto_state", "rto_location")).lower()
+    want = next((c for name, c in
+                 {v.lower(): k for k, v in _STATE_BY_CODE.items()}.items()
+                 if name in prose), None)
+    if not want or want == prefix:
+        return
+    old = code_f.value
+    code_f.value = f"{want}{sep}{digits}"
+    code_f.note = (f"{code_f.note}; " if code_f.note else "") + (
+        f"plate prefix '{prefix}' disagrees with the RTO location text; used "
+        f"state code '{want}' from the schedule (was {old!r})")
 
 
 def _merge(merged: dict, raw: dict, page: int) -> None:
@@ -241,6 +286,22 @@ def extract(pdf_path: str, source: str) -> Optional[PolicyFacts]:
 
 if __name__ == "__main__":  # manual: python -m insurance_rater.llm <policy.pdf>
     import sys
+    # Offline self-check: derive rto_code from the plate, then reconcile against
+    # the RTO prose (no network / API key needed).
+    _pf = PolicyFacts(insurer="Reliance", policy_type="comprehensive", insurer_key="reliance")
+    _pf.add("registration", "UF16CS5830")   # vision misread of UP16CS5830 (P->F)
+    _pf.add("rto_state", "UTTAR PRADESH")
+    _pf.add("rto_code", _rto_from_registration("UF16CS5830", "reliance"))
+    assert _pf.facts["rto_code"].value == "UF-16", _pf.facts["rto_code"].value
+    _reconcile_rto(_pf)                      # prose "UTTAR PRADESH" wins over "UF"
+    assert _pf.facts["rto_code"].value == "UP-16", _pf.facts["rto_code"].value
+    # a correctly-read plate (plain go_digit form) is left untouched
+    _pf2 = PolicyFacts(insurer="Go Digit", policy_type="comprehensive", insurer_key="go_digit")
+    _pf2.add("rto_state", "UTTAR PRADESH")
+    _pf2.add("rto_code", _rto_from_registration("UP16CS5830", "go_digit"))
+    _reconcile_rto(_pf2)
+    assert _pf2.facts["rto_code"].value == "UP16", _pf2.facts["rto_code"].value
+    print("rto derive+reconcile self-check ok")
     if not available():
         raise SystemExit("set GROQ_API_KEY (or add it to .env) to run this")
     path = sys.argv[1]

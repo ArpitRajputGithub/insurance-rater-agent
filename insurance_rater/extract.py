@@ -103,7 +103,9 @@ def extract_policy(pdf_path: str) -> PolicyFacts:
             pf = llm.extract(pdf_path, source)
             if pf is not None:
                 return pf
-        except Exception as e:  # network/parse error -> fall back, don't crash
+        except Exception as e:  # network / rate-limit / parse error -> fall back to OCR
+            # A free-tier 429 lands here too: we'd rather grind the OCR path (slow
+            # but returns a result) than fail the request outright.
             llm_error = f"{type(e).__name__}: {e}"
 
     pages = ocr.page_texts(pdf_path)
