@@ -29,7 +29,7 @@ from .models import Citation, PolicyFacts
 _ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 _MODEL = "qwen/qwen3.6-27b"          # Groq's vision model (image + JSON mode)
 _RESOLUTION = 200  # DPI knob; qwen downscales past ~1.5-2MP, so crop-to-region is the next lever
-_MAX_PAGES = 3     # bound the per-page vision loop; the schedule identifies in the first pages
+_MAX_PAGES = 4     # bound the per-page vision loop; Tata's vehicle table sits on page 4
 
 _INT_KEYS = {"cc", "mfg_year", "regn_year", "ncb_percent",
              "od_premium", "tp_premium", "package_premium"}
@@ -42,6 +42,7 @@ _SCHEMA_KEYS = [
     "registration", "rto_state", "rto_location", "make", "model",
     "fuel", "cc", "mfg_year", "regn_year", "ncb_percent", "ncb_applies",
     "od_premium", "tp_premium", "package_premium", "zone", "cng_lpg_kit",
+    "body_type", "prev_insurer",
 ]
 
 _SYSTEM = (

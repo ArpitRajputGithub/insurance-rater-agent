@@ -1,17 +1,32 @@
-"""Reliance -- Comprehensive. RTO code -> region_city -> OD column, minus the
-<1000cc footnote. TP payout is on OD premium only (STP column = 0).
+"""Reliance -- cover-aware. RTO code -> region (RTO List) -> the column that the
+policy's cover reads from in the 'PRIVATE CAR COMP, SAOD & STP' sheet:
+
+  * comprehensive : OD from Petrol/Bifuel/Comp or Diesel/EV/Comp (fuel rule),
+                    TP from STP (grid note: payout on OD premium only).
+  * saod          : OD from the 'SA OD' column; a stand-alone OD carries no
+                    third-party cover, so TP is n/a (never 0%).
+  * satp          : TP from the 'STP' column; no own-damage cover, so OD is n/a.
+
+Columns are anchored on their header text and the <1000cc footnote is read from
+the card, so a monthly reshuffle is survived (or refused) instead of mis-read.
 """
 from __future__ import annotations
 
 import re
 
 from ..models import ComponentRate, Status, TraceStep
-from .common import _unsupported, _wb, _xls_cite
+from .common import (_na, _norm, _struct_changed, _unsupported, _wb, _xls_cite,
+                     find_row, header_map)
+
+_INSURER = "Reliance"
+_SHEET = "PRIVATE CAR COMP, SAOD & STP"
+_COL_BY_COVER = {"saod": "sa od", "satp": "stp"}  # comprehensive is the fuel-rule path
 
 
 def resolve(facts, raters_dir):
     key = "reliance"
     trace = []
+    cover = facts.policy_type
     wb = _wb(key, raters_dir)
 
     rto = facts.get("rto_code")
@@ -20,6 +35,9 @@ def resolve(facts, raters_dir):
         return r, _unsupported("tp", r.reason), trace
 
     # 1. RTO code -> Region_City (RTO List sheet, col A -> col C).
+    if "RTO List" not in wb.sheetnames:
+        return (_struct_changed("od", _INSURER, "the 'RTO List' sheet"),
+                _struct_changed("tp", _INSURER, "the 'RTO List' sheet"), trace)
     rl = wb["RTO List"]
     city = crow = None
     for r in range(1, rl.max_row + 1):
@@ -33,21 +51,59 @@ def resolve(facts, raters_dir):
     trace.append(TraceStep(f"RTO {rto} maps to Reliance region '{city}'",
                            facts.facts.get("rto_code").citation, c1))
 
-    # 2. region -> rate row (PRIVATE CAR COMP, SAOD & STP).
-    rs = wb["PRIVATE CAR COMP, SAOD & STP"]
+    # 2. Anchor the header row + columns, then the region's rate row.
+    if _SHEET not in wb.sheetnames:
+        return (_struct_changed("od", _INSURER, f"the '{_SHEET}' sheet"),
+                _struct_changed("tp", _INSURER, f"the '{_SHEET}' sheet"), trace)
+    rs = wb[_SHEET]
+    hdr = find_row(rs, "RTO region", "SA OD", "STP")
+    if hdr is None:
+        what = "the RTO region / SA OD / STP header row"
+        return _struct_changed("od", _INSURER, what), _struct_changed("tp", _INSURER, what), trace
+    cols = header_map(rs, hdr)
+    for need in ("rto region", "petrol/bifuel/comp", "diesel/ev/comp", "sa od", "stp"):
+        if need not in cols:
+            what = f"the '{need}' column"
+            return _struct_changed("od", _INSURER, what), _struct_changed("tp", _INSURER, what), trace
+
     rrow = None
-    for r in range(3, rs.max_row + 1):
-        if str(rs.cell(r, 2).value).strip().lower() == str(city).strip().lower():
+    for r in range(hdr + 1, rs.max_row + 1):
+        if _norm(rs.cell(r, cols["rto region"]).value) == _norm(city):
             rrow = r
             break
     if rrow is None:
         r = _unsupported("od", f"Region '{city}' not found in the Reliance rate sheet.", [c1])
         return r, _unsupported("tp", r.reason, [c1]), trace
 
-    petrol_od = rs.cell(rrow, 3).value       # 'Petrol/Bifuel/Comp'
-    diesel_od = rs.cell(rrow, 4).value       # 'Diesel/EV/Comp'
-    stp = rs.cell(rrow, 6).value             # 'STP'
-    sheet = "PRIVATE CAR COMP, SAOD & STP"
+    basis = _basis_cite(rs, hdr)
+
+    # 3. Dispatch on the policy's cover.
+    if cover == "satp":
+        tp = _reliance_tp(key, rrow, cols["stp"], rs.cell(rrow, cols["stp"]).value)
+        na = _na("od", "Stand-alone Third Party policy carries no own-damage cover, so "
+                       "no OD commission applies.")
+        return na, tp, trace
+
+    if cover == "saod":
+        col = cols["sa od"]
+        base = rs.cell(rrow, col).value
+        if _pct_or(base) is None:
+            r = _unsupported("od", f"Reliance 'SA OD' column is blank for region '{city}'.",
+                             [c1])
+            return r, _na("tp", "Stand-alone Own Damage policy has no third-party cover."), trace
+        c2 = _xls_cite(key, _SHEET, rrow, col, f"{city} SA OD = {base}%")
+        trace.append(TraceStep(f"Region '{city}' SA OD = {base}%", None, c2))
+        rate, cites = float(base), [c1, c2]
+        rate = _apply_footnote(rs, key, facts, rate, cites, trace)
+        od = ComponentRate("od", True, Status.RESOLVED, round(rate, 3), citations=cites,
+                           reason=f"Reliance {city} stand-alone Own Damage rate.")
+        return od, _na("tp", "Stand-alone Own Damage policy carries no third-party cover, "
+                             "so no TP commission applies."), trace
+
+    # comprehensive: OD from the fuel columns, TP from STP.
+    petrol_od = rs.cell(rrow, cols["petrol/bifuel/comp"]).value
+    diesel_od = rs.cell(rrow, cols["diesel/ev/comp"]).value
+    stp = rs.cell(rrow, cols["stp"]).value
 
     # Fuel is not printed on the Reliance schedule. If petrol and diesel columns
     # differ we cannot silently pick one -> only resolve on a documented rule:
@@ -68,35 +124,63 @@ def resolve(facts, raters_dir):
                           reason=("Reliance OD differs by fuel (Petrol/Bifuel "
                                   f"{petrol_od} vs Diesel/EV {diesel_od}) and fuel is "
                                   "not printed on the schedule."))
-        return r, _reliance_tp(key, sheet, rrow, stp), trace
-    c2 = _xls_cite(key, sheet, rrow, 3, f"{city} Petrol/Bifuel/Comp = {base}%")
+        return r, _reliance_tp(key, rrow, cols["stp"], stp), trace
+    c2 = _xls_cite(key, _SHEET, rrow, cols["petrol/bifuel/comp"],
+                   f"{city} Petrol/Bifuel/Comp = {base}%")
     trace.append(TraceStep(f"Region '{city}' OD (Petrol/Bifuel) = {base}% ({note})", None, c2))
 
-    rate = float(base)
-    cites = [c1, c2]
-    # 3. Sub-cc OD footnote (cell H3). Both numbers -- the cc threshold and the %
-    # cut -- live in the cell text, and the card is replaced monthly, so read
-    # them from the cell instead of hard-coding. If H3 looks like a cc rule we
-    # can't parse, flag it rather than apply a stale constant (fail loud, not
-    # silently wrong).
-    foot = str(rs.cell(3, 8).value or "")
+    rate, cites = float(base), [c1, c2]
+    rate = _apply_footnote(rs, key, facts, rate, cites, trace)
+    od = ComponentRate("od", True, Status.RESOLVED, round(rate, 3), citations=cites,
+                       reason=f"Reliance {city} OD ({note}).")
+    return od, _reliance_tp(key, rrow, cols["stp"], stp), trace
+
+
+def _basis_cite(rs, hdr):
+    """Find + cite the grid's 'payout on OD premium' note; None if absent."""
+    for r in range(1, min(rs.max_row, hdr + 2) + 1):
+        for c in range(1, rs.max_column + 1):
+            if "payout" in _norm(rs.cell(r, c).value) and "od premium" in _norm(rs.cell(r, c).value):
+                return _xls_cite("reliance", _SHEET, r, c, "payout is on OD premium")
+    return None
+
+
+def _apply_footnote(rs, key, facts, rate, cites, trace):
+    """Apply the sub-cc OD footnote if the card carries one and cc is under it.
+
+    Both numbers -- the cc threshold and the % cut -- live in the note text, and
+    the card is replaced monthly, so we read them from the anchored cell rather
+    than hard-code. If a cc-looking note can't be parsed we flag it (fail loud)
+    instead of applying a stale constant.
+    """
+    cc = facts.get("cc")
+    cell = _find_footnote(rs)
+    if cell is None:
+        return rate
+    frow, fcol, foot = cell
     parsed = _cc_footnote(foot)
-    applied = None  # (threshold, cut) actually applied
     if parsed and cc is not None and cc < parsed[0]:
         threshold, cut = parsed
         rate -= cut
-        applied = parsed
-        c3 = _xls_cite(key, sheet, 3, 8, f"footnote: <{threshold}cc -> {cut:g}% lesser ({foot})")
+        c3 = _xls_cite(key, _SHEET, frow, fcol,
+                       f"footnote: <{threshold}cc -> {cut:g}% lesser ({foot})")
         cites.append(c3)
-        trace.append(TraceStep(f"Footnote: {cc}cc < {threshold}cc -> -{cut:g}% -> OD {rate:g}%", None, c3))
+        trace.append(TraceStep(f"Footnote: {cc}cc < {threshold}cc -> -{cut:g}% -> OD {rate:g}%",
+                               None, c3))
     elif parsed is None and cc is not None and "cc" in foot.lower():
-        facts.warnings.append("Reliance sub-cc OD footnote (H3) could not be parsed; no "
+        facts.warnings.append("Reliance sub-cc OD footnote could not be parsed; no "
                               f"adjustment applied -- verify the rate card. Footnote: {foot!r}")
+    return rate
 
-    od = ComponentRate("od", True, Status.RESOLVED, round(rate, 3), citations=cites,
-                       reason=f"Reliance {city} OD ({note}) minus <{applied[0]}cc footnote."
-                       if applied else f"Reliance {city} OD ({note}).")
-    return od, _reliance_tp(key, sheet, rrow, stp), trace
+
+def _find_footnote(rs):
+    """(row, col, text) of the first cell holding a sub-cc payout note, or None."""
+    for r in range(1, rs.max_row + 1):
+        for c in range(1, rs.max_column + 1):
+            t = str(rs.cell(r, c).value or "")
+            if "cc" in t.lower() and "payout" in t.lower():
+                return r, c, t
+    return None
 
 
 def _pct_or(v):
@@ -120,15 +204,15 @@ def _cc_footnote(text: str):
     return (int(m.group(1)), float(m.group(2))) if m else None
 
 
-def _reliance_tp(key, sheet, rrow, stp):
-    # Grid note H2: payout is on OD premium only. A blank STP cell is a missing
+def _reliance_tp(key, rrow, stp_col, stp):
+    # Grid note: payout is on OD premium only. A blank STP cell is a missing
     # rule -> unsupported, never a fabricated zero.
     val = _pct_or(stp)
     if val is None:
         return _unsupported("tp", "Reliance STP column is blank for this region; the "
                             "Third Party payout cannot be confirmed from the grid.",
-                            [_xls_cite(key, sheet, rrow, 6, "STP column is blank")])
-    c = _xls_cite(key, sheet, rrow, 6, f"STP column = {stp}; payout is on OD premium only")
+                            [_xls_cite(key, _SHEET, rrow, stp_col, "STP column is blank")])
+    c = _xls_cite(key, _SHEET, rrow, stp_col, f"STP column = {stp}; payout is on OD premium only")
     return ComponentRate("tp", True, Status.RESOLVED, round(val, 3), citations=[c],
                          reason="Reliance pays commission on OD premium only (grid note); "
                                 f"the Third Party (STP) column reads {val:g}%.")

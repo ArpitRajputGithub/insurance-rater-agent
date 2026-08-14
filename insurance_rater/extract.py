@@ -271,12 +271,36 @@ def _parse_reliance(pages: list[str], source: str) -> PolicyFacts:
 
 def _parse_tata(pages: list[str], source: str) -> PolicyFacts:
     pf = PolicyFacts(insurer=insurers.name("tata_aig"), policy_type=_derive_type(pages))
+    reg = _find(pages, r"Registration No\.?\s+([A-Z]{2}\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{3,4})")
+    if reg:
+        m, i = reg
+        raw = re.sub(r"\s", "", m.group(1))
+        code = re.match(r"([A-Z]{2})(\d{1,2})", raw)
+        pf.add("registration", raw, _cite(source, i, m.group(0)))
+        pf.add("rto_code", code.group(1) + code.group(2),
+               _cite(source, i, f"RTO code from registration {raw}"))
+        state = _STATE_BY_CODE.get(code.group(1))
+        if state:
+            pf.add("rto_state", state,
+                   _cite(source, i, f"state from RTO code {code.group(1)} ({raw})"))
     mm = _find(pages, r"Make\s*/\s*Model\s*/?\s*([A-Z]+)\s*/\s*([A-Z ]+?)\s*/")
     if mm:
         m, i = mm
         pf.add("make", m.group(1).title(), _cite(source, i))
         pf.add("model", m.group(2).strip().title(), _cite(source, i))
-    fu = _find(pages, r"Variant\s+[A-Z0-9 ]*\b(CNG|Petrol|Diesel|LPG|Electric)\b")
+    bt = _find(pages, r"Body Type\s+([A-Za-z]+)")
+    if bt:
+        m, i = bt
+        pf.add("body_type", m.group(1).upper(), _cite(source, i, m.group(0).strip()))
+    # Business type (Renewal vs Rollover) hinges on who the previous insurer was.
+    pi = _find(pages, r"Previous Insurance Details:.{0,120}?Name of the Insurer:\s*"
+                      r"([A-Z][A-Za-z ]+?)(?=\s+Name of|\s*\n)", flags=re.I | re.S)
+    if pi:
+        m, i = pi
+        pf.add("prev_insurer", m.group(1).strip(),
+               _cite(source, i, f"Previous Insurance Details: {m.group(1).strip()}"))
+    fu = (_find(pages, r"Fuel Type\s+(Petrol|Diesel|CNG|LPG|Electric|EV)\b")
+          or _find(pages, r"Variant\s+[A-Z0-9 ]*\b(CNG|Petrol|Diesel|LPG|Electric)\b"))
     if fu:
         m, i = fu
         pf.add("fuel", m.group(1).upper() if m.group(1).upper() == "CNG" else m.group(1).lower(),
