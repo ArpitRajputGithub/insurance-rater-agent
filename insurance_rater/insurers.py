@@ -30,7 +30,9 @@ REGISTRY: tuple[Insurer, ...] = (
             (r"Go\s*Digit",)),
     Insurer("reliance", "Reliance",
             "reliance-indusind/feb-2026/Reliance Broking Premier  FEB 26 Grid.xlsx",
-            (r"Reliance",)),
+            # IndusInd Bank is the distribution partner on Reliance schedules;
+            # its letterhead survives even when the watermark mangles "Reliance".
+            (r"Reliance", r"IndusInd")),
     Insurer("tata_aig", "Tata AIG",
             "tata-aig/march-2026/Tata AIG Standard Grid_Communication_Mar'26_F_v2_0212.xlsx",
             (r"Tata\s*AIG",)),

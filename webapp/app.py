@@ -143,7 +143,8 @@ def index(request: Request):
 @app.post("/rate", response_class=HTMLResponse)
 async def rate(request: Request,
                file: UploadFile | None = File(None),
-               url: str | None = Form(None)):
+               url: str | None = Form(None),
+               rerate: str | None = Form(None)):
     # Two dynamic-input paths: an uploaded file, or a URL we fetch server-side.
     if file is not None and file.filename:
         data = await file.read(MAX_UPLOAD_BYTES + 1)  # bounded read: don't slurp a huge upload
@@ -166,7 +167,10 @@ async def rate(request: Request,
     # browser never holds the long request, so a cold start or slow extraction
     # can't drop the response and force a manual refresh.
     digest = ocr._digest(tmp_path)
-    if store.get(digest) is not None or _JOBS.get(digest) == _PROCESSING:
+    # `rerate` skips the stored-result short-circuit so a result computed by
+    # older code can be refreshed; store.save upserts, replacing the stale row.
+    cached = store.get(digest) is not None and not rerate
+    if cached or _JOBS.get(digest) == _PROCESSING:
         os.unlink(tmp_path)  # already rated, or a rating is already in flight
     else:
         _JOBS[digest] = _PROCESSING
@@ -177,6 +181,10 @@ async def rate(request: Request,
 
 @app.get("/entry/{digest}", response_class=HTMLResponse)
 def entry(request: Request, digest: str):
+    # An in-flight re-rate outranks the stored row, or the poll would render the
+    # stale result it is about to replace.
+    if _JOBS.get(digest) == _PROCESSING:
+        return templates.TemplateResponse("processing.html", {"request": request})
     result = store.get(digest)
     if result is None:
         state, message = _pending_state(digest)

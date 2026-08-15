@@ -61,7 +61,7 @@ def test_llm_build_maps_fields_and_formats_rto():
     # rto_code form (Go Digit 'HR51' vs Reliance 'HR-51').
     from insurance_rater import llm
     raw = {"insurer": "go_digit", "policy_type": "saod", "fields": {
-        "rto_code": {"value": "HR51", "page": 1, "quote": "HR51CQ0040"},
+        "registration": {"value": "HR51CQ0040", "page": 1, "quote": "HR51CQ0040"},
         "cc": {"value": "2,184", "page": 1, "quote": "2184 CC"},
         "fuel": {"value": "Diesel", "page": 1},
     }}
@@ -72,7 +72,8 @@ def test_llm_build_maps_fields_and_formats_rto():
     assert pf.get("cc") == 2184
     assert pf.get("fuel") == "diesel"
     assert pf.facts["rto_code"].citation.locator == "page 1"
-    pf2 = llm._build({"insurer": "reliance", "fields": {"rto_code": {"value": "HR51", "page": 1}}},
+    pf2 = llm._build({"insurer": "reliance",
+                      "fields": {"registration": {"value": "HR51CQ0040", "page": 1}}},
                      "x.pdf")
     assert pf2.get("rto_code") == "HR-51"
 
@@ -124,3 +125,66 @@ def test_rollup_precedence():
     assert _rollup(_cr("od", True, R), _cr("tp", True, U)) is U
     # ambiguous outranks unsupported
     assert _rollup(_cr("od", True, A), _cr("tp", True, U)) is A
+
+
+def test_llm_call_retries_chain_after_quota_window(monkeypatch):
+    # Every model 429s on the first pass; after one sleep the first model
+    # answers. _call must fail over through the chain, wait once, and succeed.
+    import io as _io
+    import json as _json
+    import urllib.error
+    from insurance_rater import llm
+
+    calls, sleeps = [], []
+    ok = {"choices": [{"message": {"content": "{\"fields\": {}}"}}]}
+
+    def fake_urlopen(req, timeout=0):
+        calls.append(_json.loads(req.data)["model"])
+        if len(calls) <= len(llm._MODELS):
+            raise urllib.error.HTTPError(req.full_url, 429, "quota", {}, _io.BytesIO(b""))
+        class R:
+            def __enter__(self): return _io.StringIO(_json.dumps(ok))
+            def __exit__(self, *a): pass
+        return R()
+
+    monkeypatch.setattr(llm.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(llm.time, "sleep", sleeps.append)
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    assert llm._call(["data:image/png;base64,x"]) == {"fields": {}}
+    assert calls == list(llm._MODELS) + [llm._MODELS[0]]
+    assert sleeps == [30]
+
+    # A non-retryable error (401 bad key) must raise immediately, no retry.
+    calls.clear()
+    def fake_401(req, timeout=0):
+        calls.append(1)
+        raise urllib.error.HTTPError(req.full_url, 401, "unauthorized", {}, _io.BytesIO(b""))
+    monkeypatch.setattr(llm.urllib.request, "urlopen", fake_401)
+    try:
+        llm._call(["data:image/png;base64,x"])
+        assert False, "expected HTTPError"
+    except urllib.error.HTTPError:
+        pass
+    assert calls == [1]
+
+
+def test_onboard_validate_rejects_hallucinated_coordinates():
+    # The proposer must not trust LLM-cited sheets/cells that don't exist.
+    import openpyxl
+    from insurance_rater.onboard import validate
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Rates"
+    ws["A1"], ws["H3"] = "header", "Payout for < 1000 CC, 5% lesser"
+    good = {"sheets": [{"name": "Rates"}],
+            "rate_sheets": [{"sheet": "Rates", "header_row": 1}],
+            "rto_mappings": [{"sheet": "Rates"}],
+            "footnotes": [{"sheet": "Rates", "cell": "H3"}]}
+    assert validate(good, wb) == []
+    bad = {"sheets": [{"name": "Ghost"}],
+           "rate_sheets": [{"sheet": "Rates", "header_row": 999}],
+           "rto_mappings": [{"sheet": "Nope"}],
+           "footnotes": [{"sheet": "Rates", "cell": "ZZ99"},   # empty cell
+                         {"sheet": "Rates", "cell": "not-a-cell"}]}
+    issues = validate(bad, wb)
+    assert len(issues) == 5, issues

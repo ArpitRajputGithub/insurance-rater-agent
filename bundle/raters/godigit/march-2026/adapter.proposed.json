@@ -1,0 +1,586 @@
+{
+  "insurer": "Digit",
+  "sheets": [
+    {
+      "name": "CV Grid (excl. HCV)",
+      "purpose": "Commercial vehicle commission rates excluding HCV"
+    },
+    {
+      "name": "HCV GRID",
+      "purpose": "Heavy commercial vehicle commission rates"
+    },
+    {
+      "name": "TAXI Segments and Location wise",
+      "purpose": "Taxi commission rates by segment and location"
+    },
+    {
+      "name": "4W SATP",
+      "purpose": "Four-wheeler SATP (Third Party) commission rates"
+    },
+    {
+      "name": "4W New Business 1+3",
+      "purpose": "Four-wheeler new business 1+3 commission rates"
+    },
+    {
+      "name": "TW 1+1 & SATP",
+      "purpose": "Two-wheeler 1+1 and SATP commission rates"
+    },
+    {
+      "name": "TW 1+5",
+      "purpose": "Two-wheeler 1+5 commission rates"
+    },
+    {
+      "name": "2W Grid 5+5",
+      "purpose": "Two-wheeler 5+5 commission rates"
+    },
+    {
+      "name": "TW SAOD with Flexi Options",
+      "purpose": "Two-wheeler SAOD commission rates with flexi options"
+    },
+    {
+      "name": "School & Staff Bus",
+      "purpose": "School and staff bus commission rates"
+    },
+    {
+      "name": "School & Staff Bus RTO",
+      "purpose": "RTO mappings for school and staff bus"
+    },
+    {
+      "name": "CV RTO Mapping",
+      "purpose": "RTO code to region mappings for commercial vehicles"
+    },
+    {
+      "name": "2W RTO's",
+      "purpose": "RTO code to cluster mappings for two-wheelers"
+    },
+    {
+      "name": "4W  RTO",
+      "purpose": "RTO code to cluster mappings for four-wheelers"
+    }
+  ],
+  "rate_sheets": [
+    {
+      "sheet": "CV Grid (excl. HCV)",
+      "product": "commercial vehicle",
+      "header_row": 3,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "UP Cluster 1",
+            "UP Cluster 2",
+            "Good UP",
+            "Bad UP",
+            "Hyderabad",
+            "Bad AP&TS"
+          ],
+          "derive_from_policy": "RTO location mapping from CV RTO Mapping sheet"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "GCV4 upto 1.6T 0-5 years",
+            "GCV4 upto 1.6T 6+ years",
+            "GCV3",
+            "Tractor 0 to 5 years",
+            "E-Loaders",
+            "PCV3W non-diesel Age 0"
+          ],
+          "derive_from_policy": "Vehicle class, GVW, and age from policy schedule"
+        },
+        {
+          "name": "make",
+          "values": [
+            "All",
+            "Non-TATA",
+            "TATA",
+            "Oil Tanker"
+          ],
+          "derive_from_policy": "Vehicle make from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions. D means declined."
+    },
+    {
+      "sheet": "HCV GRID",
+      "product": "heavy commercial vehicle",
+      "header_row": 3,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "Good GJ",
+            "Bad GJ 1& Bad GJ 2",
+            "Bad GJ - 1",
+            "Bad GJ -2",
+            "GJ Ref",
+            "Good RJ"
+          ],
+          "derive_from_policy": "RTO location mapping"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "GCV4 12 to 20T",
+            "GCV4 20 to 40T",
+            "GCV4 40-44T",
+            "GCV4 40T+",
+            "GCV4 44T+"
+          ],
+          "derive_from_policy": "Segment and tonnage from policy schedule"
+        },
+        {
+          "name": "make",
+          "values": [
+            "All",
+            "TATA"
+          ],
+          "derive_from_policy": "Vehicle make from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions or percentages. D means declined."
+    },
+    {
+      "sheet": "TAXI Segments and Location wise",
+      "product": "taxi",
+      "header_row": 3,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "Lucknow",
+            "Good UP",
+            "Good TN",
+            "Kolkata",
+            "Hyderabad",
+            "Good Vizag/Vijayawada"
+          ],
+          "derive_from_policy": "RTO location mapping"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "Taxi upto 5 seater non-diesel < 1000 cc",
+            "Taxi upto 5 seater non-diesel > 1000 cc",
+            "Taxi upto 5 seater diesel < 1000 cc",
+            "Taxi upto 5 seater Electric < 1000 cc"
+          ],
+          "derive_from_policy": "Vehicle seating, fuel, and cubic capacity from policy schedule"
+        },
+        {
+          "name": "make",
+          "values": [
+            "Maruti & Hyundai",
+            "Other than Maruti & Hyundai",
+            "All",
+            "Hindustan"
+          ],
+          "derive_from_policy": "Vehicle make from policy schedule"
+        },
+        {
+          "name": "addon",
+          "values": [
+            "With Add on cover",
+            "Without Add on cover"
+          ],
+          "derive_from_policy": "Add-on opted status from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions. D means declined."
+    },
+    {
+      "sheet": "4W SATP",
+      "product": "four-wheeler SATP",
+      "header_row": 2,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "All_India_Decline",
+            "Andaman",
+            "AP TS_Bad",
+            "AP TS_Good1/Good2",
+            "Assam_Good",
+            "Bangalore",
+            "Bihar_Bad",
+            "Mumbai 2"
+          ],
+          "derive_from_policy": "RTO location mapping from 4W RTO sheet"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "CNG<1000",
+            "CNG>1000",
+            "Diesel<1500",
+            "Diesel>1500",
+            "Petrol<1000",
+            "Petrol>1000"
+          ],
+          "derive_from_policy": "Fuel and cubic capacity from policy schedule"
+        },
+        {
+          "name": "age",
+          "values": [
+            "All",
+            "<10",
+            ">10"
+          ],
+          "derive_from_policy": "Vehicle age from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions."
+    },
+    {
+      "sheet": "4W New Business 1+3",
+      "product": "four-wheeler new business 1+3",
+      "header_row": 3,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "Andaman",
+            "AP_TS",
+            "Assam",
+            "Bad_UP",
+            "Bihar",
+            "BLR",
+            "DL",
+            "Goa",
+            "GJ_Good",
+            "HP__HR",
+            "Hyderabad",
+            "J_K",
+            "JH",
+            "KL",
+            "MP__CG",
+            "Mum",
+            "NE",
+            "Orissa",
+            "PB_CH",
+            "Pune",
+            "REST_OF_GJ",
+            "REST_OF_KA",
+            "RJ",
+            "ROM",
+            "TN",
+            "UK",
+            "UP",
+            "WB"
+          ],
+          "derive_from_policy": "RTO location mapping from 4W RTO sheet"
+        },
+        {
+          "name": "make",
+          "values": [
+            "Tata",
+            "Kia",
+            "Mahindra",
+            "Hyundai",
+            "Toyota",
+            "HEV-Mercedes Benz, Ford, BMW, Jeep, Ferr",
+            "Maruti, MG, Skoda, Volks, Honda, Renault"
+          ],
+          "derive_from_policy": "Vehicle make from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions."
+    },
+    {
+      "sheet": "TW 1+1 & SATP",
+      "product": "two-wheeler 1+1 and SATP",
+      "header_row": 4,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "Andaman",
+            "APTS_Bad",
+            "APTS_Good1",
+            "APTS_Good2",
+            "APTS_Ref",
+            "BR_Bad",
+            "WB_Kolkata"
+          ],
+          "derive_from_policy": "RTO location mapping from 2W RTO's sheet"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "SC/EV",
+            "MC <= 180 Hero/Honda",
+            "MC <= 180 Others",
+            "MC_180-350_RE",
+            "MC_180-350_HONDA/JAWA/Avenger",
+            "MC_180-350_Others",
+            "MC>350"
+          ],
+          "derive_from_policy": "Vehicle type, make, and engine capacity from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions."
+    },
+    {
+      "sheet": "TW 1+5",
+      "product": "two-wheeler 1+5",
+      "header_row": 2,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "Andaman",
+            "APTS_Bad",
+            "APTS_Good"
+          ],
+          "derive_from_policy": "RTO location mapping from 2W RTO's sheet"
+        },
+        {
+          "name": "make",
+          "values": [
+            "BAJAJ",
+            "HERO MOTOCORP",
+            "HONDA",
+            "Others",
+            "ROYAL ENFIELD",
+            "SUZUKI",
+            "TVS",
+            "YAMAHA"
+          ],
+          "derive_from_policy": "Vehicle make from policy schedule"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "3-7 KW",
+            "MC <=155",
+            "MC >155",
+            "SCOOTER",
+            "All"
+          ],
+          "derive_from_policy": "Vehicle segment and capacity from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions. MISP and D indicate special handling or declination."
+    },
+    {
+      "sheet": "2W Grid 5+5",
+      "product": "two-wheeler 5+5",
+      "header_row": 2,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "All",
+            "Andaman",
+            "APTS_Bad",
+            "WB_Kolkata"
+          ],
+          "derive_from_policy": "RTO location mapping from 2W RTO's sheet"
+        },
+        {
+          "name": "make",
+          "values": [
+            "HERO MOTOCORP",
+            "BAJAJ",
+            "HONDA",
+            "Others",
+            "ROYAL ENFIELD",
+            "SUZUKI",
+            "TVS",
+            "YAMAHA"
+          ],
+          "derive_from_policy": "Vehicle make from policy schedule"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "All",
+            "3-7 KW",
+            "MC <=155",
+            "MC >155",
+            "SCOOTER"
+          ],
+          "derive_from_policy": "Vehicle segment from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions. D means declined."
+    },
+    {
+      "sheet": "TW SAOD with Flexi Options",
+      "product": "two-wheeler SAOD",
+      "header_row": 5,
+      "dimensions": [
+        {
+          "name": "cluster",
+          "values": [
+            "AHMEDABAD,SURAT,BARODA",
+            "Andaman",
+            "AP",
+            "Assam",
+            "BR",
+            "CG",
+            "Chennai_Coimbatore",
+            "DL",
+            "UP",
+            "WB"
+          ],
+          "derive_from_policy": "RTO location mapping from 2W RTO's sheet"
+        },
+        {
+          "name": "segment",
+          "values": [
+            "MC <155",
+            "MC>155",
+            "RE",
+            "SC",
+            "SC_EV"
+          ],
+          "derive_from_policy": "Vehicle segment from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions."
+    },
+    {
+      "sheet": "School & Staff Bus",
+      "product": "school bus",
+      "header_row": 4,
+      "dimensions": [
+        {
+          "name": "state",
+          "values": [
+            "Gujarat, Punjab & Delhi NCR",
+            "Punjab",
+            "Delhi NCR",
+            "Uttar Pradesh",
+            "Andhra Pradesh",
+            "Telangana",
+            "Haryana",
+            "Rajasthan",
+            "Karnataka",
+            "Tamil Nadu",
+            "Kerala",
+            "MP",
+            "CG",
+            "Rest of India"
+          ],
+          "derive_from_policy": "State from RTO mapping sheet"
+        },
+        {
+          "name": "rto_cluster",
+          "values": [
+            "Gujarat",
+            "Punjab",
+            "Delhi NCR",
+            "UP Open",
+            "Vijaywada",
+            "Rest of AP",
+            "TS Open",
+            "HR Open",
+            "Rest of HR",
+            "Jaipur/Jodhpur",
+            "Rest of RJ",
+            "Udaipur",
+            "Bangalore",
+            "KA Open",
+            "TN Open",
+            "Kerala",
+            "MP",
+            "Good CG",
+            "Rest of India"
+          ],
+          "derive_from_policy": "RTO cluster mapping from School & Staff Bus RTO sheet"
+        },
+        {
+          "name": "seating_capacity",
+          "values": [
+            "8 & above",
+            "8-60",
+            ">60",
+            "All"
+          ],
+          "derive_from_policy": "Seating capacity from policy schedule"
+        },
+        {
+          "name": "permit_type",
+          "values": [
+            "In the name of School",
+            "On Contract (Transporter)",
+            "On Contract (Individual)"
+          ],
+          "derive_from_policy": "Permit type from policy schedule"
+        }
+      ],
+      "notes": "Rates are fractions. D means declined."
+    }
+  ],
+  "rto_mappings": [
+    {
+      "sheet": "CV RTO Mapping",
+      "maps": "RTO code -> CV cluster categories (CV_GCV3, CV_LCV, CV_MCV, CV_HCV, etc.)"
+    },
+    {
+      "sheet": "2W RTO's",
+      "maps": "RTO_Code -> 2W Clusters (2W_1+1 & SATP, 2W 1+5 & 5+5, 2W_SAOD)"
+    },
+    {
+      "sheet": "4W  RTO",
+      "maps": "RTO Code -> 4W Clusters (4WTP, 4W Package, 4WSAOD, PLR Cluster)"
+    },
+    {
+      "sheet": "School & Staff Bus RTO",
+      "maps": "RTO Code -> School Bus / Staff Bus RTO Cluster"
+    }
+  ],
+  "footnotes": [
+    {
+      "sheet": "CV Grid (excl. HCV)",
+      "cell": "I6",
+      "meaning": "For comp policies, declined for all RTOs"
+    },
+    {
+      "sheet": "CV Grid (excl. HCV)",
+      "cell": "H27",
+      "meaning": "All OEM except Hyundai"
+    },
+    {
+      "sheet": "CV Grid (excl. HCV)",
+      "cell": "H28",
+      "meaning": "Body type CRANE is declined"
+    },
+    {
+      "sheet": "CV Grid (excl. HCV)",
+      "cell": "H38",
+      "meaning": "UP53 is Declined"
+    },
+    {
+      "sheet": "4W SATP",
+      "cell": "F27",
+      "meaning": "More than 1500CC and 10+ age is declined"
+    },
+    {
+      "sheet": "School & Staff Bus",
+      "cell": "F2",
+      "meaning": "Volume slabs discontinued"
+    },
+    {
+      "sheet": "School & Staff Bus",
+      "cell": "B34",
+      "meaning": "Short Term Policies - CD2 reduction applied"
+    },
+    {
+      "sheet": "School & Staff Bus",
+      "cell": "B65",
+      "meaning": "CD2 for Short-term policies will be 5% less"
+    }
+  ],
+  "_meta": {
+    "workbook": "Large Insurance Brokers Mar'26 - Shared.xlsx",
+    "model": "models/gemini-3.5-flash-lite",
+    "validation_issues": [],
+    "cross_check": [
+      "AGREES: resolver rate sheet '4W SATP' found",
+      "AGREES: resolver RTO sheet '4W  RTO'",
+      "EXTRA: proposed rate sheets beyond the resolver's scope: ['2W Grid 5+5', '4W New Business 1+3', 'CV Grid (excl. HCV)', 'HCV GRID', 'School & Staff Bus', 'TAXI Segments and Location wise', 'TW 1+1 & SATP', 'TW 1+5', 'TW SAOD with Flexi Options'] (expected -- resolvers only cover private car)"
+    ]
+  }
+}

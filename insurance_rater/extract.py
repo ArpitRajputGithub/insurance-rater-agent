@@ -1,10 +1,11 @@
 """Policy-fact extraction: the fuzzy half of the pipeline.
 
-Every supplied policy is a scanned, de-identified PDF, so we OCR it and pull
-facts with tolerant regexes. This layer is allowed to be probabilistic and
-could be backed by a vision-LLM extractor. It is isolated behind
-`extract_policy()` so it can be swapped without touching the deterministic
-grid resolvers downstream.
+Every supplied policy is a scanned, de-identified PDF. Facts are read from the
+rendered page images by a vision LLM (llm.py); the Tesseract+regex parsers in
+this file remain only to backfill facts on pages the vision loop early-stops
+before (e.g. prev_insurer deep in the document). It is all isolated behind
+`extract_policy()` so the deterministic grid resolvers downstream never see
+the difference.
 
 Each extracted fact carries a Citation back to the policy page it came from,
 and a `confident` flag so genuine uncertainty (e.g. a fuel type the schedule
@@ -12,7 +13,6 @@ never prints) survives into the result instead of being silently guessed.
 """
 from __future__ import annotations
 
-import os
 import re
 from typing import Optional
 
@@ -69,8 +69,20 @@ def _derive_type(pages: list[str]) -> str:
     return _classify_policy(pages)
 
 
+# Charged premiums, not boilerplate: "Basic" is required on the TP label so the
+# "Period of Policy for Third Party Liability To <date>" line cannot match.
+_OD_PREMIUM = re.compile(r"Own Damage Premium\D{0,12}([\d,]+(?:\.\d+)?)", re.I)
+_TP_PREMIUM = re.compile(r"Basic Third[-\s]?Party Liability\D{0,12}([\d,]+(?:\.\d+)?)", re.I)
+
+
 def _classify_policy(pages: list[str]) -> str:
     joined = "\n".join(pages)
+    # A schedule that charges both an OD and a TP premium is a package,
+    # whatever cover names the boilerplate happens to mention.
+    od_m, tp_m = _OD_PREMIUM.search(joined), _TP_PREMIUM.search(joined)
+    if (od_m and tp_m and float(od_m.group(1).replace(",", "")) > 0
+            and float(tp_m.group(1).replace(",", "")) > 0):
+        return "comprehensive"
     if re.search(r"liability only|third[\s-]party (cover|policy)|SATP|stand[\s-]alone", joined, re.I):
         if not re.search(r"package|comprehensive", joined, re.I):
             return "satp"
@@ -90,35 +102,38 @@ def detect_insurer(pages: list[str]) -> Optional[str]:
     return None
 
 
+def _backfill_from_ocr(pf: PolicyFacts, pdf_path: str, source: str) -> None:
+    """Fill facts the vision pass missed from the OCR+regex parse.
+
+    The vision loop early-stops after the schedule pages, so a fact printed
+    deep in the document (prev_insurer on page 13) never reaches it; the OCR
+    parse reads every page. Vision facts are never overwritten -- OCR only
+    fills gaps, and each backfilled fact keeps its own page citation.
+    """
+    try:
+        pages = ocr.page_texts(pdf_path)
+        parser = _PARSERS.get(pf.insurer_key or detect_insurer(pages))
+        if parser is None:
+            return
+        for k, f in parser(pages, source).facts.items():
+            if k not in pf.facts and f.value is not None:
+                pf.facts[k] = f
+    except Exception as e:
+        pf.warnings.append(f"OCR backfill failed ({e}); vision facts only.")
+
+
 def extract_policy(pdf_path: str) -> PolicyFacts:
     source = pdf_path.split("/")[-1]
 
-    # Optional vision-LLM extractor (same PolicyFacts shape, grids untouched).
-    # Opt-in via LLM_EXTRACT; it reads the page images directly, so it skips
-    # Tesseract entirely. Any failure falls back to the OCR+regex path below.
-    llm_error = None
-    if os.environ.get("LLM_EXTRACT"):
-        from . import llm
-        try:
-            pf = llm.extract(pdf_path, source)
-            if pf is not None:
-                return pf
-        except Exception as e:  # network / rate-limit / parse error -> fall back to OCR
-            # A free-tier 429 lands here too: we'd rather grind the OCR path (slow
-            # but returns a result) than fail the request outright.
-            llm_error = f"{type(e).__name__}: {e}"
-
-    pages = ocr.page_texts(pdf_path)
-    insurer_key = detect_insurer(pages)
-    parser = _PARSERS.get(insurer_key)
-    if parser is None:
-        pf = PolicyFacts(insurer="unknown", policy_type=_classify_policy(pages))
-        pf.warnings.append(f"Unrecognised insurer in {source}; no dedicated parser.")
-        return pf
-    pf = parser(pages, source)
-    pf.insurer_key = insurer_key
-    if llm_error:
-        pf.warnings.append(f"LLM extraction failed ({llm_error}); used regex parser.")
+    # Vision-LLM extraction is the only scanning path: it reads the rendered
+    # page images, so OCR's watermark/table mangling never reaches the facts.
+    # A failure (missing key, network, quota on every model) raises -- a loud
+    # error beats silently rating from a weaker read.
+    from . import llm
+    pf = llm.extract(pdf_path, source)
+    if pf is None:
+        raise RuntimeError("LLM extraction needs GEMINI_API_KEY (env or .env).")
+    _backfill_from_ocr(pf, pdf_path, source)
     return pf
 
 
@@ -191,7 +206,19 @@ def _parse_go_digit(pages: list[str], source: str) -> PolicyFacts:
         pf.add("rto_code", code, _cite(source, i, f"RTO code from registration {raw}"))
     # Town sits on the "RTO Location" line; the state next to it is OCR-mangled
     # ("WwTTAR PRADESH"), so normalise it from the RTO code prefix instead.
-    loc = _find(pages, r"RTO Location\s*[=—–-]*\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)")
+    # OCR renders the table several times (a diagonal watermark crosses it); a
+    # garbled pass bleeds into the next column ("SC Prrensnarssees Make TATA...")
+    # while a clean pass reads "Thane, MAHARASHTRA" -- so skip any candidate
+    # that swallowed a following column label and keep scanning.
+    loc = None
+    _loc_rx = re.compile(r"RTO Location\s*[=—–-]*\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)", re.I)
+    for _i, _text in enumerate(pages):
+        for _m in _loc_rx.finditer(_text):
+            if not re.search(r"\b(make|variant|vehicle|model)\b", _m.group(1), re.I):
+                loc = (_m, _i)
+                break
+        if loc:
+            break
     if loc:
         m, i = loc
         town = m.group(1).strip()
@@ -228,13 +255,17 @@ def _parse_go_digit(pages: list[str], source: str) -> PolicyFacts:
 
 def _parse_reliance(pages: list[str], source: str) -> PolicyFacts:
     pf = PolicyFacts(insurer=insurers.name("reliance"), policy_type=_derive_type(pages))
-    reg = _find(pages, r"Registration No\.?\s+([A-Z]{2}\d{1,2}[A-Z]{1,2}\d{3,4})")
+    # District digits tolerate 'O' (OCR reads 0 as O: 'MHO04FF2072'); the RTO
+    # List keys on the zero-padded dashed form (MH-04).
+    reg = _find(pages, r"Registration No\.?\s+([A-Z]{2}[O0-9]{1,4}[A-Z]{1,2}\d{3,4})")
     if reg:
         m, i = reg
         raw = m.group(1)
-        code = re.match(r"([A-Z]{2})(\d{1,2})", raw)
+        code = re.match(r"([A-Z]{2})([O0-9]+)", raw)
+        district = int(code.group(2).replace("O", "0"))
         pf.add("registration", raw, _cite(source, i, m.group(0)))
-        pf.add("rto_code", f"{code.group(1)}-{code.group(2)}", _cite(source, i, f"RTO code from {raw}"))
+        pf.add("rto_code", f"{code.group(1)}-{district:02d}",
+               _cite(source, i, f"RTO code from {raw}"))
     loc = _find(pages, r"RTO Location\s+([A-Za-z ]+-\s*[A-Za-z]+)")
     if loc:
         m, i = loc
@@ -288,7 +319,7 @@ def _parse_tata(pages: list[str], source: str) -> PolicyFacts:
         m, i = mm
         pf.add("make", m.group(1).title(), _cite(source, i))
         pf.add("model", m.group(2).strip().title(), _cite(source, i))
-    bt = _find(pages, r"Body Type\s+([A-Za-z]+)")
+    bt = _find(pages, r"(?:Body|Vehicle) Type\s*:?\s*([A-Za-z]+)")
     if bt:
         m, i = bt
         pf.add("body_type", m.group(1).upper(), _cite(source, i, m.group(0).strip()))

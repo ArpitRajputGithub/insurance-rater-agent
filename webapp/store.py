@@ -21,12 +21,12 @@ DATABASE_URL = os.environ.get("DATABASE_URL")
 _CREATE = (
     "CREATE TABLE IF NOT EXISTS entries ("
     "hash TEXT PRIMARY KEY, filename TEXT, insurer TEXT, policy_type TEXT, "
-    "status TEXT, created_at DOUBLE PRECISION, result_json TEXT NOT NULL)"
+    "status TEXT, created_at TIMESTAMPTZ, result_json TEXT NOT NULL)"
 )
 _UPSERT = (
     "INSERT INTO entries "
     "(hash, filename, insurer, policy_type, status, created_at, result_json) "
-    "VALUES (%s, %s, %s, %s, %s, %s, %s) "
+    "VALUES (%s, %s, %s, %s, %s, now(), %s) "
     "ON CONFLICT (hash) DO UPDATE SET filename=EXCLUDED.filename, "
     "insurer=EXCLUDED.insurer, policy_type=EXCLUDED.policy_type, "
     "status=EXCLUDED.status, created_at=EXCLUDED.created_at, "
@@ -50,7 +50,7 @@ def save(digest: str, filename: str, result: dict) -> None:
     with _cursor() as cur:
         cur.execute(_UPSERT, (
             digest, filename, result.get("insurer"), result.get("policyType"),
-            result.get("status"), time.time(), json.dumps(result)))
+            result.get("status"), json.dumps(result)))
 
 
 def get(digest: str) -> Optional[dict]:

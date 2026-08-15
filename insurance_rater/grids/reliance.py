@@ -66,9 +66,12 @@ def resolve(facts, raters_dir):
             what = f"the '{need}' column"
             return _struct_changed("od", _INSURER, what), _struct_changed("tp", _INSURER, what), trace
 
+    # Region rows can group cities ("Mumbai, Pune, Goa"), so match the city
+    # against the cell's comma-separated tokens, not the whole cell.
     rrow = None
     for r in range(hdr + 1, rs.max_row + 1):
-        if _norm(rs.cell(r, cols["rto region"]).value) == _norm(city):
+        tokens = [_norm(t) for t in str(rs.cell(r, cols["rto region"]).value or "").split(",")]
+        if _norm(city) in tokens:
             rrow = r
             break
     if rrow is None:

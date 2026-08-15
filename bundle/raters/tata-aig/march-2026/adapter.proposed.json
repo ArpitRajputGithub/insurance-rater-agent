@@ -1,0 +1,229 @@
+{
+  "insurer": "Tata AIG",
+  "sheets": [
+    {
+      "name": "General Guidelines",
+      "purpose": "Key guidelines for standard commission grid"
+    },
+    {
+      "name": "cv checks",
+      "purpose": "Commercial vehicle commission rates check grid"
+    },
+    {
+      "name": "pci checks",
+      "purpose": "Private car commercial/other checks grid"
+    },
+    {
+      "name": "Pvtcar",
+      "purpose": "Private car commission rate grid"
+    },
+    {
+      "name": "CV",
+      "purpose": "Commercial vehicle commission rate grid"
+    },
+    {
+      "name": "TW",
+      "purpose": "Two-wheeler commission rate grid"
+    },
+    {
+      "name": "Pvtcar_Extended Warranty",
+      "purpose": "Private car extended warranty commission rate grid"
+    }
+  ],
+  "rate_sheets": [
+    {
+      "sheet": "TW",
+      "product": "two-wheeler",
+      "header_row": 5,
+      "dimensions": [
+        {
+          "name": "Segment",
+          "values": [
+            "Motor Cycle",
+            "Moped",
+            "Scooter"
+          ],
+          "derive_from_policy": "Vehicle segment/body type from policy schedule"
+        },
+        {
+          "name": "Business Type",
+          "values": [
+            "Brand New",
+            "Renewal",
+            "Rollover"
+          ],
+          "derive_from_policy": "Policy business type"
+        },
+        {
+          "name": "Type",
+          "values": [
+            "Package",
+            "SATP",
+            "SAOD",
+            "All"
+          ],
+          "derive_from_policy": "Cover type (Package/SATP/SAOD)"
+        }
+      ],
+      "notes": "Rates are fractions. Payout % to be applied on New (1+)"
+    },
+    {
+      "sheet": "CV",
+      "product": "commercial vehicle",
+      "header_row": 5,
+      "dimensions": [
+        {
+          "name": "Segment",
+          "values": [
+            "GCV <= 2.5",
+            "GCV > 2.5 <= 3.5",
+            "GCV > 3.5 <= 7.5",
+            "GCV > 7.5 <= 12",
+            "GCV > 12 <= 20",
+            "GCV > 20 <= 35",
+            "GCV > 35 <= 45",
+            "GCV > 45",
+            "GCV 3W",
+            "Misc",
+            "PCV 2W",
+            "PCV 4W Non School",
+            "PCV 4W School",
+            "PCV Bus Non School 12 to 15",
+            "PCV Bus Non School 16 to 30",
+            "PCV Bus Non School 31 to 50",
+            "PCV Bus Non School > 50",
+            "PCV Bus School 12 to 15",
+            "PCV Bus School 16 to 30",
+            "PCV Bus School 31 to 50",
+            "PCV Bus School > 50",
+            "Harvester",
+            "Tractor",
+            "Trade Road Risk",
+            "Trailer"
+          ],
+          "derive_from_policy": "Vehicle tonnage/segment from policy schedule"
+        },
+        {
+          "name": "Fuel Type",
+          "values": [
+            "All",
+            "Diesel",
+            "CNG",
+            "Electric",
+            "Other Than Diesel"
+          ],
+          "derive_from_policy": "Fuel type from policy"
+        },
+        {
+          "name": "Section Text",
+          "values": [
+            "Package",
+            "SATP"
+          ],
+          "derive_from_policy": "Cover type"
+        },
+        {
+          "name": "Vehicle Age Cat",
+          "values": [
+            "Brand New",
+            "All",
+            ">6"
+          ],
+          "derive_from_policy": "Vehicle age"
+        }
+      ],
+      "notes": "Rates are fractions. Payout % on Net Premium."
+    },
+    {
+      "sheet": "Pvtcar",
+      "product": "private car",
+      "header_row": 5,
+      "dimensions": [
+        {
+          "name": "Type",
+          "values": [
+            "HE/UHE",
+            "Other than HE/UHE"
+          ],
+          "derive_from_policy": "Car category"
+        },
+        {
+          "name": "Business Type",
+          "values": [
+            "New",
+            "Rollover",
+            "Renewal"
+          ],
+          "derive_from_policy": "Business type"
+        },
+        {
+          "name": "Fuel Type",
+          "values": [
+            "Diesel",
+            "CNG",
+            "Electric",
+            "Other Than Diesel",
+            "Package",
+            "SATP",
+            "SAOD",
+            "NA",
+            "Others",
+            "Battery",
+            "Petrol"
+          ],
+          "derive_from_policy": "Fuel type"
+        },
+        {
+          "name": "Section Text",
+          "values": [
+            "Package",
+            "SATP",
+            "SAOD",
+            "NA"
+          ],
+          "derive_from_policy": "Section text"
+        },
+        {
+          "name": "NCB",
+          "values": [
+            "NCB",
+            "Non NCB",
+            "All",
+            "Others",
+            "NA"
+          ],
+          "derive_from_policy": "NCB status"
+        }
+      ],
+      "notes": "Rates are fractions. Package/SAOD % on OD Premium; SATP % on TP Premium."
+    }
+  ],
+  "rto_mappings": [],
+  "footnotes": [
+    {
+      "sheet": "General Guidelines",
+      "cell": "B6",
+      "meaning": "Payout % for CV on Net Premium"
+    },
+    {
+      "sheet": "General Guidelines",
+      "cell": "B7",
+      "meaning": "Payout % for Pvt Car- SATP on Net Premium"
+    },
+    {
+      "sheet": "General Guidelines",
+      "cell": "B8",
+      "meaning": "Payout% for TW to be applied on New"
+    }
+  ],
+  "_meta": {
+    "workbook": "Tata AIG Standard Grid_Communication_Mar'26_F_v2_0212.xlsx",
+    "model": "models/gemini-3.5-flash-lite",
+    "validation_issues": [],
+    "cross_check": [
+      "AGREES: resolver rate sheet 'Pvtcar' found",
+      "AGREES: business-type dimension values ['Brand New', 'Renewal', 'Rollover']",
+      "EXTRA: proposed rate sheets beyond the resolver's scope: ['CV', 'TW'] (expected -- resolvers only cover private car)"
+    ]
+  }
+}

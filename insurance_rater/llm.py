@@ -1,4 +1,4 @@
-"""LLM-backed policy extraction (optional, Groq vision).
+"""LLM-backed policy extraction (optional, Gemini vision).
 
 The regex parsers in extract.py read Tesseract's OCR text, which loses faint or
 noisy fields -- a de-identified registration plate can come out garbled in
@@ -9,9 +9,9 @@ resolvers consume, so it replaces both the OCR and the regex stages in one
 call. Every field still carries a Citation (page + what the model read), so an
 LLM-sourced fact stays auditable.
 
-Opt-in: used only when LLM_EXTRACT is set and GROQ_API_KEY is available;
-extract_policy() falls back to the Tesseract+regex path otherwise or on any
-error. Grids never call an LLM -- rates always come from a cited grid cell.
+This is the only scanning path (needs GEMINI_API_KEY); the Tesseract+regex
+parsers survive only as a backfill for pages the vision loop early-stops
+before. Grids never call an LLM -- rates always come from a cited grid cell.
 """
 from __future__ import annotations
 
@@ -20,15 +20,22 @@ import io
 import json
 import os
 import re
+import time
+import urllib.error
 import urllib.request
 from typing import Optional
 
 from . import insurers, ocr
 from .models import Citation, PolicyFacts
 
-_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
-_MODEL = "qwen/qwen3.6-27b"          # Groq's vision model (image + JSON mode)
-_RESOLUTION = 200  # DPI knob; qwen downscales past ~1.5-2MP, so crop-to-region is the next lever
+# Gemini's OpenAI-compatible endpoint. Each model has its own free-tier quota
+# bucket, so a 429/5xx on one model fails over to the next instead of dropping
+# straight to the OCR path. Best flash first (strongest free vision model on
+# this key), older flash next, lite last (weakest reads, highest free limits).
+_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+_MODELS = ("models/gemini-3.7-flash", "models/gemini-3.6-flash",
+           "models/gemini-3.5-flash-lite")
+_RESOLUTION = 200  # DPI knob; vision models downscale past ~1.5-2MP, so crop-to-region is the next lever
 _MAX_PAGES = 4     # bound the per-page vision loop; Tata's vehicle table sits on page 4
 
 _INT_KEYS = {"cc", "mfg_year", "regn_year", "ncb_percent",
@@ -91,7 +98,7 @@ def _load_env() -> None:
 
 def _api_key() -> Optional[str]:
     _load_env()
-    return os.environ.get("GROQ_API_KEY")
+    return os.environ.get("GEMINI_API_KEY")
 
 
 def available() -> bool:
@@ -105,32 +112,51 @@ def _encode(image) -> str:
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
 
 
+_last_model = _MODELS[0]  # which model actually answered, for the facts warning
+
+
 def _call(data_urls: list[str]) -> dict:
     content = [{"type": "text", "text": "Extract the fields as instructed."}]
     content += [{"type": "image_url", "image_url": {"url": u}} for u in data_urls]
-    body = {
-        "model": _MODEL,
+    return _post({
         "temperature": 0,
-        "reasoning_effort": "none",  # qwen3 is a thinking model; without this it
-                                     # spends the budget reasoning and returns an
-                                     # empty body that fails JSON-mode validation
+        "reasoning_effort": "low",  # thinking model: unbounded reasoning eats
+                                    # max_tokens and returns an empty body
         "response_format": {"type": "json_object"},
         "max_tokens": 1500,
         "messages": [
             {"role": "system", "content": _SYSTEM},
             {"role": "user", "content": content},
         ],
-    }
-    req = urllib.request.Request(
-        _ENDPOINT, data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json",
-                 "User-Agent": "insurance-rater/1.0",  # Groq's edge 403s urllib's default UA
-                 "Authorization": f"Bearer {_api_key()}"})
-    # Let a 429 (free-tier TPM) propagate: extract_policy catches it and falls
-    # back to the OCR path -- slower, but the request still returns a result.
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        payload = json.load(resp)
-    return json.loads(payload["choices"][0]["message"]["content"])
+    })
+
+
+def _post(body: dict) -> dict:
+    """JSON-mode chat completion through the free-model failover chain."""
+    global _last_model
+    # A 429 (quota) or 5xx (overloaded, e.g. a brand-new model at peak) fails
+    # over to the next model. If the whole chain is exhausted on retryable
+    # errors, wait out the free-tier RPM window once and retry the chain --
+    # this is the only scanning path, so one pause beats failing the policy.
+    for attempt in range(2):
+        for i, model in enumerate(_MODELS):
+            req = urllib.request.Request(
+                _ENDPOINT, data=json.dumps({**body, "model": model}).encode(),
+                headers={"Content-Type": "application/json",
+                         "User-Agent": "insurance-rater/1.0",
+                         "Authorization": f"Bearer {_api_key()}"})
+            try:
+                with urllib.request.urlopen(req, timeout=120) as resp:
+                    payload = json.load(resp)
+                _last_model = model
+                return json.loads(payload["choices"][0]["message"]["content"])
+            except urllib.error.HTTPError as e:
+                if e.code != 429 and e.code < 500:
+                    raise
+                if i == len(_MODELS) - 1:
+                    if attempt:
+                        raise
+                    time.sleep(30)  # free-tier quotas are per-minute buckets
 
 
 def _insurer_key(value) -> Optional[str]:
@@ -202,7 +228,7 @@ def _build(raw: dict, source: str) -> PolicyFacts:
             pf.add("rto_code", code,
                    Citation(source, loc, f"RTO code from registration {reg_f.value}"))
     _reconcile_rto(pf)
-    pf.warnings.append(f"Facts read from page images by vision model ({_MODEL}).")
+    pf.warnings.append(f"Facts read from page images by vision model ({_last_model}).")
     return pf
 
 
@@ -304,7 +330,7 @@ if __name__ == "__main__":  # manual: python -m insurance_rater.llm <policy.pdf>
     assert _pf2.facts["rto_code"].value == "UP16", _pf2.facts["rto_code"].value
     print("rto derive+reconcile self-check ok")
     if not available():
-        raise SystemExit("set GROQ_API_KEY (or add it to .env) to run this")
+        raise SystemExit("set GEMINI_API_KEY (or add it to .env) to run this")
     path = sys.argv[1]
     pf = extract(path, path.split("/")[-1])
     print("insurer:", pf.insurer, f"({pf.insurer_key})", "| type:", pf.policy_type)

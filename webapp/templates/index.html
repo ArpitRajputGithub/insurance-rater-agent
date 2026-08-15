@@ -21,7 +21,12 @@
       <input type="url" name="url" placeholder="…or paste a link to a policy PDF (https://…)"
              style="flex:1;padding:11px 13px;border:1px solid var(--border);border-radius:10px;font:inherit;color:var(--ink);background:var(--card)">
     </div>
-    <div class="actions"><button type="submit">Rate policy</button></div>
+    <div class="actions">
+      <button type="submit">Rate policy</button>
+      <label class="muted" style="display:flex;align-items:center;gap:6px;font-size:.85rem">
+        <input type="checkbox" name="rerate" value="1"> re-rate even if already stored
+      </label>
+    </div>
   </form>
   <script>
   (function(){

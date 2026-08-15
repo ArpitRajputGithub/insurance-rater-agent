@@ -1,0 +1,222 @@
+{
+  "insurer": "Reliance",
+  "sheets": [
+    {
+      "name": "FEB'26 - Grid",
+      "purpose": "Multi-product commission rate grid by zone and RTO region"
+    },
+    {
+      "name": "TW SCOOTER GRID",
+      "purpose": "Two-wheeler and scooter commission rates by zone and state"
+    },
+    {
+      "name": "PRIVATE CAR COMP, SAOD & STP",
+      "purpose": "Private car commission rates by zone and RTO region"
+    },
+    {
+      "name": "Short Term Taxi",
+      "purpose": "Short term taxi rates (empty)"
+    },
+    {
+      "name": "Enabler, PO Guidelines & T&C",
+      "purpose": "Guidelines, enablers, volume slabs and terms & conditions"
+    },
+    {
+      "name": "Contest",
+      "purpose": "Contest details (empty)"
+    },
+    {
+      "name": "RTO List",
+      "purpose": "Mapping of RTO codes to region city, market type and zone"
+    },
+    {
+      "name": "Make Model wise segment",
+      "purpose": "Mapping of vehicle make and model to vehicle segment"
+    }
+  ],
+  "rate_sheets": [
+    {
+      "sheet": "FEB'26 - Grid",
+      "product": "Commercial Vehicles, PCV, Tractor, Car Carrier",
+      "header_row": 4,
+      "dimensions": [
+        {
+          "name": "zone",
+          "values": [
+            "West",
+            "South",
+            "North",
+            "East"
+          ],
+          "derive_from_policy": "Policy zone"
+        },
+        {
+          "name": "rto_region",
+          "values": [
+            "MUMBAI",
+            "NAGPUR",
+            "PUNE",
+            "AHMEDNAGAR",
+            "AURANGABAD",
+            "KOLHAPUR",
+            "NASHIK",
+            "SOLAPUR",
+            "ROM",
+            "GOA",
+            "AHMEDABAD",
+            "SURAT",
+            "VADODARA",
+            "GANDHIDHAM",
+            "JAMNAGAR",
+            "RAJKOT",
+            "VAPI",
+            "GUJ 1",
+            "MADHYA PRADESH",
+            "ANDHRA PRADESH",
+            "HYDERABAD",
+            "TELANGANA",
+            "BANGALORE",
+            "KARNATAKA",
+            "MANGALORE",
+            "MYSORE",
+            "KERALA",
+            "CALICUT",
+            "COCHIN",
+            "TRIVANDRUM",
+            "CHENNAI",
+            "COIMBATORE",
+            "TAMILNADU",
+            "ERODE",
+            "MADURAI",
+            "PONDICHERRY",
+            "DELHI",
+            "CHANDIGARH",
+            "HP AND JAMMU",
+            "JAMMU",
+            "SHIMLA",
+            "CHHATTISGARH",
+            "KOLKATA",
+            "SILIGURI",
+            "WEST BENGAL",
+            "AGARTALA",
+            "AIZWAL",
+            "GUWAHATI",
+            "NORTH EAST"
+          ],
+          "derive_from_policy": "RTO location on policy"
+        }
+      ],
+      "notes": "Rates are in decimals (e.g. 0.71 = 71%)"
+    },
+    {
+      "sheet": "TW SCOOTER GRID",
+      "product": "Two-Wheeler Scooter",
+      "header_row": 2,
+      "dimensions": [
+        {
+          "name": "zone",
+          "values": [
+            "WEST",
+            "SOUTH",
+            "NORTH",
+            "EAST"
+          ],
+          "derive_from_policy": "Policy zone"
+        },
+        {
+          "name": "states",
+          "values": [
+            "Mumbai,Pune",
+            "MH,GA",
+            "GJ",
+            "MP",
+            "TN",
+            "KA",
+            "AP,TS",
+            "KL",
+            "DL,PB,HP & JK",
+            "UP & UK",
+            "RJ,HR",
+            "BH,JH,WB",
+            "OD & CG",
+            "NE"
+          ],
+          "derive_from_policy": "State from policy schedule"
+        }
+      ],
+      "notes": "Rates are percentages (e.g. 57.5 = 57.5%); payout made on 1/2 basis (50% 1st)"
+    },
+    {
+      "sheet": "PRIVATE CAR COMP, SAOD & STP",
+      "product": "Private Car",
+      "header_row": 2,
+      "dimensions": [
+        {
+          "name": "zone",
+          "values": [
+            "WEST",
+            "SOUTH",
+            "NORTH",
+            "EAST"
+          ],
+          "derive_from_policy": "Policy zone"
+        },
+        {
+          "name": "rto_region",
+          "values": [
+            "Mumbai, Pune, Goa",
+            "Rest Of Maharashtra",
+            "Gujrat",
+            "Madhya Pradesh",
+            "Banglore, Hyderabad",
+            "rest of KA,TS,AP",
+            "Kerala",
+            "TamilNadu",
+            "Delhi",
+            "Punjab, HP , JK",
+            "UP, Haryana , Rajasthan",
+            "NE , Odisha, Chhattisgarh",
+            "Bihar , Jharkhand",
+            "Kolkata",
+            "West Bengal"
+          ],
+          "derive_from_policy": "RTO region from policy schedule"
+        }
+      ],
+      "notes": "Payout made on OD Premium. Rates are percentages."
+    }
+  ],
+  "rto_mappings": [
+    {
+      "sheet": "RTO List",
+      "maps": "Region_Code -> Region_City, Market_Type, Zone"
+    }
+  ],
+  "footnotes": [
+    {
+      "sheet": "Enabler, PO Guidelines & T&C",
+      "cell": "A5",
+      "meaning": "For ODD > 85%, 2.5% Payout shall be deducted"
+    },
+    {
+      "sheet": "PRIVATE CAR COMP, SAOD & STP",
+      "cell": "H3",
+      "meaning": "Payout for < 1000 CC, PO will be 5% less"
+    },
+    {
+      "sheet": "PRIVATE CAR COMP, SAOD & STP",
+      "cell": "H4",
+      "meaning": "Standalone ZD policies 2.5% will be reduced"
+    }
+  ],
+  "_meta": {
+    "workbook": "Reliance Broking Premier  FEB 26 Grid.xlsx",
+    "model": "models/gemini-3.5-flash-lite",
+    "validation_issues": [],
+    "cross_check": [
+      "AGREES: resolver rate sheet 'PRIVATE CAR COMP, SAOD & STP' found",
+      "AGREES: resolver RTO sheet 'RTO List'",
+      "EXTRA: proposed rate sheets beyond the resolver's scope: [\"FEB'26 - Grid\", 'TW SCOOTER GRID'] (expected -- resolvers only cover private car)"
+    ]
+  }
+}

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from typing import Optional
 
 from ..models import ComponentRate, Status, TraceStep
 from .common import (_na, _norm, _struct_changed, _unsupported, _wb, _xls_cite,
